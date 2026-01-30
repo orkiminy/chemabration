@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "name": "Catalytic Hydrogenation",
+
+    "reagents": {
+      "top": "H₂",
+      "bottom": "Pt"
+    },
+
+    "instruction": "Hydrogenate the double bond using H₂ / Pt",
+
+    "given": {
+      "atoms": [
+        { "id": 1, "x": 160, "y": 240, "label": "C" },
+        { "id": 2, "x": 240, "y": 240, "label": "C" }
+      ],
+      "bonds": [
+        { "id": 101, "from": 1, "to": 2, "order": 2, "style": "solid" }
+      ]
+    },
+
+    "answer": {
+      "atoms": [
+        { "id": 1, "x": 160, "y": 240, "label": "C" },
+        { "id": 2, "x": 240, "y": 240, "label": "C" },
+        { "id": 3, "x": 160, "y": 200, "label": "H" },
+        { "id": 4, "x": 160, "y": 280, "label": "H" },
+        { "id": 5, "x": 240, "y": 200, "label": "H" },
+        { "id": 6, "x": 240, "y": 280, "label": "H" }
+      ],
+      "bonds": [
+        { "id": 101, "from": 1, "to": 2, "order": 1, "style": "solid" },
+        { "id": 102, "from": 1, "to": 3, "order": 1, "style": "solid" },
+        { "id": 103, "from": 1, "to": 4, "order": 1, "style": "solid" },
+        { "id": 104, "from": 2, "to": 5, "order": 1, "style": "solid" },
+        { "id": 105, "from": 2, "to": 6, "order": 1, "style": "solid" }
+      ]
+    }
+  }
+]

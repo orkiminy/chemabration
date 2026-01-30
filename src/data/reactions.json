@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "top": "H2",
+    "bottom": "PT"
+  },
+  {
+    "id": 2,
+    "top": "OH",
+    "bottom": "C6H5Br",
+    "instruction": "Add hydroxyl group to the bromobenzene"
+  },
+  {
+    "id": 3,
+    "top": "Cl",
+    "bottom": "C6H5OH",
+    "instruction": "Add chlorine to phenol"
+  }
+]
