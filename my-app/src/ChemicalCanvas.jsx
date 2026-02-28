@@ -227,7 +227,7 @@ export default function ChemicalEditor() {
 
           const dx = a2.y - a1.y;
           const dy = a2.x - a1.x;
-          const len = Math.sqrt(dx * dx + dy * dy);
+          const len = Math.sqrt(dx * dx + dy * dy) || 1;
           const offsetX = (dx / len) * 4;
           const offsetY = (dy / len) * 4;
 

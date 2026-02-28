@@ -28,7 +28,7 @@ function Header() {
               </div>
 
               <div className="icon">
-                <i class="bx bxl-tiktok"></i>
+                <i className="bx bxl-tiktok"></i>
 
               </div>
 
@@ -57,36 +57,36 @@ function Header() {
       </div>
       
 
-      <div class="subcategories">
+      <div className="subcategories">
         <ul>
           <li className='subcategories-org'>
-            <svg class="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
+            <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
               <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
                       fill="transparent"
                       stroke="#5f021f"
-                      stroke-width="4"/>
+                      strokeWidth="4"/>
             </svg>
             <Link to="/oneStepReaction">
               One-step reaction
             </Link>
           </li>
           <li className='subcategories-org'>
-            <svg class="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
+            <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
               <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
                       fill="transparent"
                       stroke="#5f021f"
-                      stroke-width="4"/>
+                      strokeWidth="4"/>
             </svg>
             <Link to="/Synthesis">
               Synthesis
             </Link>
           </li>
           <li className='subcategories-org'>
-             <svg class="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
+             <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
               <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
                       fill="transparent"
                       stroke="#5f021f"
-                      stroke-width="4"/>
+                      strokeWidth="4"/>
             </svg>
             <Link to="/Mechanism">
               Mechanism

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import SetCanvas from "./setCanvas";
 import ReactionArrow from "./addingReaction";
-import { reactionLevels } from "./data/reactionLevels.js"; 
+import { reactionLevels } from "./data/reactionLevels.js";
 import { checkIsomorphism } from "./chemistryUtils";
 
 // --- FIREBASE IMPORTS ---
-import { db, auth } from './firebase'; 
-import { doc, setDoc, getDoc, onAuthStateChanged } from "firebase/firestore"; 
+import { db, auth } from './firebase';
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 export default function ExerciseCanvas() {
   /* ---------- CONSTANTS ---------- */
@@ -19,22 +19,27 @@ export default function ExerciseCanvas() {
   /* ---------- STATE ---------- */
   const [levelIndex, setLevelIndex] = useState(() => Math.floor(Math.random() * reactionLevels.length));
   const [questionCount, setQuestionCount] = useState(1);
-  const [user, setUser] = useState(null); // Track the logged-in student
+  const [user, setUser] = useState(null);
 
   const [atoms, setAtoms] = useState([]);
   const [bonds, setBonds] = useState([]);
   const [selectedAtom, setSelectedAtom] = useState(null);
   const [selectedBond, setSelectedBond] = useState(null);
   const [tool, setTool] = useState("pencil");
-  const [atomType, setAtomType] = useState("C"); 
+  const [atomType, setAtomType] = useState("C");
   const [bondStyle, setBondStyle] = useState("solid");
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState(null);
 
   const currentLevel = reactionLevels[levelIndex];
 
+  /* Clear feedback when user modifies canvas */
+  useEffect(() => {
+    if (feedback) setFeedback(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atoms, bonds]);
+
   /* ---------- FIREBASE: PERSISTENCE LOGIC ---------- */
 
-  // 1. Listen for when the student logs in
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
@@ -45,12 +50,10 @@ export default function ExerciseCanvas() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Load progress from the cloud
   const loadProgress = async (uid) => {
     try {
       const studentRef = doc(db, "students", uid);
       const docSnap = await getDoc(studentRef);
-
       if (docSnap.exists() && docSnap.data().questionCount) {
         setQuestionCount(docSnap.data().questionCount);
       }
@@ -59,12 +62,11 @@ export default function ExerciseCanvas() {
     }
   };
 
-  // 3. Save progress to the cloud
   const saveProgress = async (newCount) => {
     if (user) {
       try {
         const studentRef = doc(db, "students", user.uid);
-        await setDoc(studentRef, { 
+        await setDoc(studentRef, {
           questionCount: newCount,
           lastActive: new Date()
         }, { merge: true });
@@ -113,13 +115,12 @@ export default function ExerciseCanvas() {
       if (d < minDist) { minDist = d; closest = p; }
     }
     const snap = minDist <= SNAP_RADIUS ? closest : null;
-    
+
     if (!snap) return;
     if (atoms.some(a => a.x === snap.x && a.y === snap.y)) return;
 
     setAtoms([...atoms, { id: Date.now(), x: snap.x, y: snap.y, label: atomType }]);
     setSelectedAtom(null);
-    setFeedback(""); 
   };
 
   const handleAtomClick = (atomId) => {
@@ -137,8 +138,8 @@ export default function ExerciseCanvas() {
       return;
     }
 
-    const exists = bonds.some(b => 
-      (b.from === selectedAtom && b.to === atomId) || 
+    const exists = bonds.some(b =>
+      (b.from === selectedAtom && b.to === atomId) ||
       (b.from === atomId && b.to === selectedAtom)
     );
 
@@ -165,153 +166,241 @@ export default function ExerciseCanvas() {
     setSelectedBond(bondId);
   };
 
+  /* ---------- DELETE KEY ---------- */
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Delete" && selectedBond) {
+        setBonds(prev => prev.filter(b => b.id !== selectedBond));
+        setSelectedBond(null);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedBond]);
+
   /* ---------- CHECK ANSWER ---------- */
   const checkAnswer = () => {
+    if (atoms.length === 0) {
+      setFeedback({ type: "error", message: "Draw your answer first!" });
+      return;
+    }
+
     let possibleSolutions = [];
     if (currentLevel.solutions) possibleSolutions = currentLevel.solutions;
     else if (currentLevel.solution) possibleSolutions = [currentLevel.solution];
 
     const matchFound = possibleSolutions.some((sol) => {
-      if (!sol || !sol.atoms) return false; 
+      if (!sol || !sol.atoms) return false;
       return checkIsomorphism(atoms, bonds, sol.atoms, sol.bonds);
     });
 
     if (matchFound) {
-      setFeedback("✅ Correct! Next question...");
-      
+      setFeedback({ type: "success", message: "Correct! Next question..." });
+
       const nextCount = questionCount + 1;
-      
-      // Save to Firebase Cloud
       saveProgress(nextCount);
 
       setTimeout(() => {
         const nextIndex = getRandomLevelIndex(levelIndex);
         setLevelIndex(nextIndex);
         setQuestionCount(nextCount);
-        setAtoms([]); 
+        setAtoms([]);
         setBonds([]);
-        setFeedback("");
+        setFeedback(null);
       }, 1500);
-
     } else {
-      setFeedback("❌ Incorrect. Check regiochemistry and stereochemistry!");
+      setFeedback({ type: "error", message: "Incorrect. Check regiochemistry and stereochemistry!" });
     }
   };
 
+  /* ---------- HELPERS ---------- */
+  const atomRadius = (label) => (label && label.length > 1 ? 18 : ATOM_RADIUS);
+
+  /* ---------- RENDER ---------- */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontFamily: "Arial" }}>
-      <div style={{marginLeft: 20}}>
-        <h2>Question #{questionCount}: {currentLevel.title}</h2>
-        <p style={{color: "#666"}}>{currentLevel.description}</p>
-        {!user && <p style={{color: "red"}}>⚠️ Not logged in. Progress won't be saved.</p>}
+    <div>
+      {/* Question header */}
+      <div style={{ marginBottom: "1rem" }}>
+        <h2 style={{ color: "#5f021f", margin: 0 }}>Question #{questionCount}: {currentLevel.title}</h2>
+        <p style={{ color: "#666", margin: "4px 0 0" }}>{currentLevel.description}</p>
+        {!user && <p style={{ color: "#c0392b", margin: "4px 0 0", fontSize: "0.9rem" }}>Not logged in. Progress won't be saved.</p>}
       </div>
 
-      <div style={{ display: "flex", gap: "20px" }}>
-        <SetCanvas atoms={currentLevel.question.atoms} bonds={currentLevel.question.bonds} />
-        <ReactionArrow key={currentLevel.id} text={currentLevel.reagents} />
-
-        <div>
-          <svg
-            width={WIDTH}
-            height={HEIGHT}
-            style={{ border: "1px solid #ccc", cursor: tool === "eraser" ? "not-allowed" : "crosshair" }}
-            onClick={handleCanvasClick}
+      {/* Feedback banner */}
+      {feedback && (
+        <div className={`feedback-banner ${feedback.type === "success" ? "feedback-success" : "feedback-error"}`}>
+          <span>{feedback.message}</span>
+          <button
+            onClick={() => setFeedback(null)}
+            style={{ marginLeft: 12, background: "none", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: 16, color: "inherit" }}
           >
-            {gridPoints.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#ccc" />
-            ))}
+            &times;
+          </button>
+        </div>
+      )}
 
-            {bonds.map(bond => {
-              const a1 = atoms.find(a => a.id === bond.from);
-              const a2 = atoms.find(a => a.id === bond.to);
-              if (!a1 || !a2) return null;
+      <div className="exercise-layout">
+        {/* Left: Given structure */}
+        <div className="exercise-panel">
+          <div className="exercise-panel-box">
+            <div className="exercise-panel-label">Given Structure</div>
+            <SetCanvas atoms={currentLevel.question.atoms} bonds={currentLevel.question.bonds} />
+          </div>
+        </div>
 
-              if (bond.style === "wedge") {
-                const dx = a2.x - a1.x;
-                const dy = a2.y - a1.y;
-                const angle = Math.atan2(dy, dx);
-                const width = 6; 
-                const p1x = a1.x;
-                const p1y = a1.y;
-                const perp = angle + Math.PI / 2;
-                const p2x = a2.x + Math.cos(perp) * width;
-                const p2y = a2.y + Math.sin(perp) * width;
-                const p3x = a2.x - Math.cos(perp) * width;
-                const p3y = a2.y - Math.sin(perp) * width;
+        {/* Middle: Reagent arrow */}
+        <div className="exercise-panel" style={{ display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "center" }}>
+          <div className="exercise-panel-box">
+            <div className="exercise-panel-label">Reagent</div>
+            <div style={{ padding: "10px" }}>
+              <ReactionArrow key={currentLevel.id} text={currentLevel.reagents} />
+            </div>
+          </div>
+        </div>
 
-                return (
-                  <polygon
-                    key={bond.id}
-                    points={`${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y}`}
-                    fill={bond.id === selectedBond ? "red" : "#000"}
+        {/* Right: Editable canvas */}
+        <div className="exercise-panel">
+          <div className="exercise-panel-box">
+            <div className="exercise-panel-label">Your Answer</div>
+            <svg
+              width={WIDTH}
+              height={HEIGHT}
+              viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+              style={{ display: "block", maxWidth: "100%", height: "auto", cursor: tool === "eraser" ? "not-allowed" : "crosshair" }}
+              onClick={handleCanvasClick}
+            >
+              {/* GRID */}
+              {gridPoints.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#ccc" />
+              ))}
+
+              {/* BONDS */}
+              {bonds.map(bond => {
+                const a1 = atoms.find(a => a.id === bond.from);
+                const a2 = atoms.find(a => a.id === bond.to);
+                if (!a1 || !a2) return null;
+
+                if (bond.style === "wedge") {
+                  const dx = a2.x - a1.x;
+                  const dy = a2.y - a1.y;
+                  const angle = Math.atan2(dy, dx);
+                  const width = 6;
+                  const perp = angle + Math.PI / 2;
+                  const p2x = a2.x + Math.cos(perp) * width;
+                  const p2y = a2.y + Math.sin(perp) * width;
+                  const p3x = a2.x - Math.cos(perp) * width;
+                  const p3y = a2.y - Math.sin(perp) * width;
+
+                  return (
+                    <polygon
+                      key={bond.id}
+                      points={`${a1.x},${a1.y} ${p2x},${p2y} ${p3x},${p3y}`}
+                      fill={bond.id === selectedBond ? "red" : "#000"}
+                      onClick={(e) => { e.stopPropagation(); handleBondClick(bond.id); }}
+                    />
+                  );
+                }
+
+                const dx = a2.y - a1.y;
+                const dy = a2.x - a1.x;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                const offsetX = (dx / len) * 4;
+                const offsetY = (dy / len) * 4;
+
+                return [...Array(bond.order)].map((_, i) => (
+                  <line
+                    key={bond.id + "-" + i}
+                    x1={a1.x + offsetX * i}
+                    y1={a1.y - offsetY * i}
+                    x2={a2.x + offsetX * i}
+                    y2={a2.y - offsetY * i}
+                    stroke={bond.id === selectedBond ? "red" : "#000"}
+                    strokeWidth="3"
+                    strokeDasharray={bond.style === "striped" ? "6,4" : "0"}
                     onClick={(e) => { e.stopPropagation(); handleBondClick(bond.id); }}
                   />
-                );
-              }
+                ));
+              })}
 
-              const dx = a2.y - a1.y;
-              const dy = a2.x - a1.x;
-              const len = Math.sqrt(dx * dx + dy * dy) || 1;
-              const offsetX = (dx / len) * 6;
-              const offsetY = (dy / len) * 6;
+              {/* ATOMS */}
+              {atoms.map(atom => (
+                <g key={atom.id}>
+                  <circle
+                    cx={atom.x}
+                    cy={atom.y}
+                    r={atomRadius(atom.label)}
+                    fill={atom.id === selectedAtom ? "red" : "#5f021f"}
+                    onClick={(e) => { e.stopPropagation(); handleAtomClick(atom.id); }}
+                  />
+                  {atom.label && atom.label !== "C" && (
+                    <text
+                      x={atom.x}
+                      y={atom.y + 4}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="#fff"
+                      pointerEvents="none"
+                    >
+                      {atom.label}
+                    </text>
+                  )}
+                </g>
+              ))}
+            </svg>
 
-              return [...Array(bond.order)].map((_, i) => (
-                <line
-                  key={bond.id + "-" + i}
-                  x1={a1.x + offsetX * i}
-                  y1={a1.y - offsetY * i}
-                  x2={a2.x + offsetX * i}
-                  y2={a2.y - offsetY * i}
-                  stroke={bond.id === selectedBond ? "red" : "#000"}
-                  strokeWidth="3"
-                  strokeDasharray={bond.style === "striped" ? "6,4" : "0"}
-                  onClick={(e) => { e.stopPropagation(); handleBondClick(bond.id); }}
-                />
-              ));
-            })}
+            {/* TOOLBAR */}
+            <div className="exercise-toolbar">
+              <div className="toolbar-group">
+                <button
+                  className={`toolbar-btn${tool === "pencil" ? " toolbar-btn-active" : ""}`}
+                  onClick={() => setTool("pencil")}
+                >
+                  Pencil
+                </button>
+                <button
+                  className={`toolbar-btn${tool === "eraser" ? " toolbar-btn-active" : ""}`}
+                  onClick={() => setTool("eraser")}
+                >
+                  Eraser
+                </button>
+                <button
+                  className="toolbar-btn"
+                  onClick={() => { setAtoms([]); setBonds([]); }}
+                >
+                  Clear
+                </button>
+              </div>
 
-            {atoms.map(atom => (
-              <g key={atom.id}>
-                <circle
-                  cx={atom.x}
-                  cy={atom.y}
-                  r={ATOM_RADIUS}
-                  fill={atom.id === selectedAtom ? "red" : "#5f021f"}
-                  onClick={(e) => { e.stopPropagation(); handleAtomClick(atom.id); }}
-                />
-                <text x={atom.x} y={atom.y + 4} textAnchor="middle" fontSize="12" fill="#fff" pointerEvents="none">
-                  {atom.label}
-                </text>
-              </g>
-            ))}
-          </svg>
+              {tool === "pencil" && (
+                <div className="toolbar-group">
+                  <select className="toolbar-select" value={atomType} onChange={(e) => setAtomType(e.target.value)}>
+                    <option value="C">C</option>
+                    <option value="H">H</option>
+                    <option value="O">O</option>
+                    <option value="N">N</option>
+                    <option value="Br">Br</option>
+                    <option value="Cl">Cl</option>
+                    <option value="F">F</option>
+                    <option value="I">I</option>
+                    <option value="S">S</option>
+                    <option value="P">P</option>
+                    <option value="OH">OH</option>
+                  </select>
+                  <select className="toolbar-select" value={bondStyle} onChange={(e) => setBondStyle(e.target.value)}>
+                    <option value="solid">Solid (Line)</option>
+                    <option value="wedge">Solid (Wedge)</option>
+                    <option value="striped">Dashed (Striped)</option>
+                  </select>
+                </div>
+              )}
 
-          <div style={{ marginTop: "10px", padding: "10px", background: "#222", color: "#fff", display: "flex", gap: "10px", alignItems: "center" }}>
-            <button onClick={() => setTool("pencil")}>Pencil</button>
-            <button onClick={() => setTool("eraser")}>Eraser</button>
-            <button onClick={() => { setAtoms([]); setBonds([]); }}>Clear</button>
-            
-            <select value={atomType} onChange={(e) => setAtomType(e.target.value)}>
-              <option value="C">C</option>
-              <option value="H">H</option>
-              <option value="O">O</option>
-              <option value="N">N</option>
-              <option value="Br">Br</option>
-              <option value="Cl">Cl</option>
-              <option value="OH">OH</option>
-            </select>
-
-            <select value={bondStyle} onChange={(e) => setBondStyle(e.target.value)}>
-              <option value="solid">Solid (Line)</option>
-              <option value="wedge">Solid (Wedge)</option>
-              <option value="striped">Dashed (Striped)</option>
-            </select>
-            
-            <button onClick={checkAnswer} style={{ background: "#4CAF50", color: "white", marginLeft: "auto" }}>
-              Check Answer
-            </button>
+              <div className="toolbar-group">
+                <button className="toolbar-btn toolbar-btn-check" onClick={checkAnswer}>
+                  Check Answer
+                </button>
+              </div>
+            </div>
           </div>
-          <div style={{ marginTop: 10, fontWeight: "bold" }}>{feedback}</div>
         </div>
       </div>
     </div>

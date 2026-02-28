@@ -1,23 +1,17 @@
-import React, { useState } from "react";
-import ChemicalCanvas from "../ChemicalCanvas";
-import ReactionTemplate from "../addingReaction";
-import SetCanvas from "../setCanvas";
-import ExerciseCanvas from "../ExerciseCanvas"; // <-- import the new exercise component
+import React from "react";
+import { Link } from "react-router-dom";
+import ExerciseCanvas from "../ExerciseCanvas";
 
 export default function ChemicalEditorPage() {
-  const [tool, setTool] = useState("pencil");
-  const canvasRef1 = React.useRef();
-  const canvasRef2 = React.useRef();
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>One Step Reactions</h1>
+    <div className="exercise-page">
+      <nav className="exercise-nav">
+        <Link to="/" className="exercise-nav-back">&larr; Back to Home</Link>
+        <span className="exercise-nav-title">One Step Reactions</span>
+        <span className="exercise-nav-spacer"></span>
+      </nav>
 
-      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-
-        {/* Exercise component for comparison */}
-        <ExerciseCanvas exerciseId={1} />
-      </div>
+      <ExerciseCanvas />
     </div>
   );
 }
