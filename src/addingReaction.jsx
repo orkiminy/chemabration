@@ -1,13 +1,13 @@
 import { useState } from "react";
 import reactionsData from "./data/reactions.json";
 
-export default function ReactionArrow() {
+export default function ReactionArrow({ top, bottom }) {
+  // Fallback: if no props passed, cycle through reactions.json (old behavior)
   const [currentIndex, setCurrentIndex] = useState(0);
   const current = reactionsData[currentIndex];
 
-  const nextReaction = () => {
-    setCurrentIndex((prev) => (prev + 1) % reactionsData.length);
-  };
+  const displayTop = top !== undefined ? top : current.top;
+  const displayBottom = bottom !== undefined ? bottom : current.bottom;
 
   return (
     <div style={{
@@ -23,11 +23,11 @@ export default function ReactionArrow() {
     }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
         <div style={{ fontWeight: "bold", fontSize: "20px", marginBottom: "5px" }}>
-          {current.top}
+          {displayTop}
         </div>
         <div style={{ fontSize: "28px", fontWeight: "bold" }}>→</div>
         <div style={{ fontWeight: "bold", fontSize: "20px", marginTop: "5px" }}>
-          {current.bottom}
+          {displayBottom}
         </div>
       </div>
     </div>

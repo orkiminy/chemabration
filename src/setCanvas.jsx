@@ -21,12 +21,43 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
     return points;
   }, []);
 
+  /* ---------- AUTO-CENTER ATOMS ---------- */
+  const centeredAtoms = useMemo(() => {
+    if (atoms.length === 0) return atoms;
+
+    const xs = atoms.map(a => a.x);
+    const ys = atoms.map(a => a.y);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+    const dx = WIDTH / 2 - cx;
+    const dy = HEIGHT / 2 - cy;
+
+    return atoms.map(a => {
+      const targetX = a.x + dx;
+      const targetY = a.y + dy;
+
+      // Snap to nearest grid point
+      let closest = gridPoints[0];
+      let minDist = Infinity;
+      for (const p of gridPoints) {
+        const d = Math.hypot(p.x - targetX, p.y - targetY);
+        if (d < minDist) {
+          minDist = d;
+          closest = p;
+        }
+      }
+      return { ...a, x: closest.x, y: closest.y };
+    });
+  }, [atoms, gridPoints]);
+
   return (
     <div style={{ fontFamily: "Arial" }}>
       <svg
         width={WIDTH}
         height={HEIGHT}
-        style={{ border: "1px solid #ccc" }}
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        style={{ display: "block", maxWidth: "100%" , height: "auto" }}
       >
         {/* GRID */}
         {gridPoints.map((p, i) => (
@@ -35,8 +66,8 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
 
         {/* BONDS */}
         {bonds.map(bond => {
-          const a1 = atoms.find(a => a.id === bond.from);
-          const a2 = atoms.find(a => a.id === bond.to);
+          const a1 = centeredAtoms.find(a => a.id === bond.from);
+          const a2 = centeredAtoms.find(a => a.id === bond.to);
           if (!a1 || !a2) return null;
 
           const dx = a2.y - a1.y;
@@ -60,7 +91,7 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
         })}
 
         {/* ATOMS */}
-        {atoms.map(atom => (
+        {centeredAtoms.map(atom => (
           <g key={atom.id}>
             <circle
               cx={atom.x}
