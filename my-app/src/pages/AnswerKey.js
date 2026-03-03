@@ -160,7 +160,11 @@ export default function AnswerKey() {
   const [selectedLevel, setSelectedLevel] = useState(0);
   const level = reactionLevels[selectedLevel];
 
-  const solutions = level.solutions || (level.solution ? [level.solution] : []);
+  // For multi-step questions, collect solutions from each step
+  const isMultiStep = level.multiStep && level.steps;
+  const solutions = isMultiStep
+    ? level.steps.flatMap((step, sIdx) => step.solutions.map(sol => ({ ...sol, _stepLabel: `Step ${sIdx + 1}: ${step.reagents}` })))
+    : level.solutions || (level.solution ? [level.solution] : []);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9e1e8", fontFamily: "Arial, sans-serif" }}>
@@ -229,7 +233,7 @@ export default function AnswerKey() {
               <MoleculeCanvas
                 atoms={sol.atoms}
                 bonds={sol.bonds}
-                label={solutions.length > 1 ? `Solution ${String.fromCharCode(65 + idx)} (Enantiomer)` : "Correct Answer"}
+                label={sol._stepLabel || (solutions.length > 1 ? `Solution ${String.fromCharCode(65 + idx)} (Enantiomer)` : "Correct Answer")}
                 snapToGrid={!sol.freePosition}
               />
             </div>

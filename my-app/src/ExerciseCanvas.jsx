@@ -31,6 +31,10 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
   const [bondStyle, setBondStyle] = useState("solid");
   const [feedback, setFeedback] = useState(null);
 
+  // Multi-step state
+  const [currentStep, setCurrentStep] = useState(0);
+  const [intermediateResult, setIntermediateResult] = useState(null);
+
   const { user } = useAuth();
   const currentLevel = reactionLevels[levelIndex];
 
@@ -199,12 +203,57 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
   }, [selectedBond]);
 
   /* ---------- CHECK ANSWER ---------- */
+  const advanceToNextQuestion = () => {
+    const nextCount = questionCount + 1;
+    saveAttempt(true);
+    saveProgress(nextCount, true);
+
+    setTimeout(() => {
+      const nextIndex = getRandomLevelIndex(levelIndex);
+      setLevelIndex(nextIndex);
+      setQuestionCount(nextCount);
+      setAtoms([]);
+      setBonds([]);
+      setFeedback(null);
+      setCurrentStep(0);
+      setIntermediateResult(null);
+      setQuestionStartTime(Date.now());
+    }, 1500);
+  };
+
   const checkAnswer = () => {
     if (atoms.length === 0) {
       setFeedback({ type: "error", message: "Draw your answer first!" });
       return;
     }
 
+    // Multi-step question
+    if (currentLevel.multiStep && currentLevel.steps) {
+      const step = currentLevel.steps[currentStep];
+      const matchFound = step.solutions.some((sol) => {
+        if (!sol || !sol.atoms) return false;
+        return checkIsomorphism(atoms, bonds, sol.atoms, sol.bonds);
+      });
+
+      if (matchFound && currentStep < currentLevel.steps.length - 1) {
+        // Step correct, but more steps remain
+        setIntermediateResult({ atoms: [...atoms], bonds: [...bonds] });
+        setCurrentStep(currentStep + 1);
+        setAtoms([]);
+        setBonds([]);
+        setFeedback({ type: "success", message: `Step ${currentStep + 1} correct! Now complete step ${currentStep + 2}...` });
+      } else if (matchFound) {
+        // Final step correct — advance
+        setFeedback({ type: "success", message: "Correct! All steps complete. Next question..." });
+        advanceToNextQuestion();
+      } else {
+        setFeedback({ type: "error", message: `Incorrect. Check step ${currentStep + 1}!` });
+        saveAttempt(false);
+      }
+      return;
+    }
+
+    // Single-step question (unchanged)
     let possibleSolutions = [];
     if (currentLevel.solutions) possibleSolutions = currentLevel.solutions;
     else if (currentLevel.solution) possibleSolutions = [currentLevel.solution];
@@ -216,20 +265,7 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
 
     if (matchFound) {
       setFeedback({ type: "success", message: "Correct! Next question..." });
-
-      const nextCount = questionCount + 1;
-      saveAttempt(true);
-      saveProgress(nextCount, true);
-
-      setTimeout(() => {
-        const nextIndex = getRandomLevelIndex(levelIndex);
-        setLevelIndex(nextIndex);
-        setQuestionCount(nextCount);
-        setAtoms([]);
-        setBonds([]);
-        setFeedback(null);
-        setQuestionStartTime(Date.now());
-      }, 1500);
+      advanceToNextQuestion();
     } else {
       setFeedback({ type: "error", message: "Incorrect. Check regiochemistry and stereochemistry!" });
       saveAttempt(false);
@@ -244,8 +280,19 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
     <div>
       {/* Question header */}
       <div style={{ marginBottom: "1rem" }}>
-        <h2 style={{ color: "#5f021f", margin: 0 }}>Question #{questionCount}: {currentLevel.title}</h2>
-        <p style={{ color: "#666", margin: "4px 0 0" }}>{currentLevel.description}</p>
+        <h2 style={{ color: "#5f021f", margin: 0 }}>
+          Question #{questionCount}: {currentLevel.title}
+          {currentLevel.multiStep && currentLevel.steps && (
+            <span style={{ fontSize: "0.7em", fontWeight: "normal", marginLeft: 12, color: "#888" }}>
+              Step {currentStep + 1} of {currentLevel.steps.length}
+            </span>
+          )}
+        </h2>
+        <p style={{ color: "#666", margin: "4px 0 0" }}>
+          {currentLevel.multiStep && currentLevel.steps
+            ? currentLevel.steps[currentStep].description || currentLevel.description
+            : currentLevel.description}
+        </p>
       </div>
 
       {/* Feedback banner */}
@@ -262,7 +309,7 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
       )}
 
       <div className="exercise-layout">
-        {/* Left: Given structure */}
+        {/* Given structure */}
         <div className="exercise-panel">
           <div className="exercise-panel-box">
             <div className="exercise-panel-label">Given Structure</div>
@@ -270,15 +317,45 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
           </div>
         </div>
 
-        {/* Middle: Reagent arrow */}
+        {/* Step 1 arrow */}
         <div className="exercise-panel" style={{ display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "center" }}>
           <div className="exercise-panel-box">
-            <div className="exercise-panel-label">Reagent</div>
+            <div className="exercise-panel-label">
+              {currentLevel.multiStep ? "Step 1" : "Reagent"}
+            </div>
             <div style={{ padding: "10px" }}>
-              <ReactionArrow key={currentLevel.id} text={currentLevel.reagents} />
+              <ReactionArrow
+                key={`${currentLevel.id}-step0`}
+                text={currentLevel.multiStep && currentLevel.steps
+                  ? currentLevel.steps[0].reagents
+                  : currentLevel.reagents}
+              />
             </div>
           </div>
         </div>
+
+        {/* For multi-step on step 2+: show intermediate + step 2 arrow before the drawing canvas */}
+        {currentLevel.multiStep && currentStep > 0 && intermediateResult && (
+          <>
+            <div className="exercise-panel">
+              <div className="exercise-panel-box">
+                <div className="exercise-panel-label" style={{ color: "green" }}>Intermediate ✓</div>
+                <SetCanvas atoms={intermediateResult.atoms} bonds={intermediateResult.bonds} />
+              </div>
+            </div>
+            <div className="exercise-panel" style={{ display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "center" }}>
+              <div className="exercise-panel-box">
+                <div className="exercise-panel-label">Step 2</div>
+                <div style={{ padding: "10px" }}>
+                  <ReactionArrow
+                    key={`${currentLevel.id}-step${currentStep}`}
+                    text={currentLevel.steps[currentStep].reagents}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Right: Editable canvas */}
         <div className="exercise-panel">

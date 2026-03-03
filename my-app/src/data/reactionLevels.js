@@ -655,4 +655,201 @@ export const reactionLevels = [
         }
       ]
   },
+
+  // --- 19. MULTI-STEP: OZONOLYSIS (placeholder) ---
+  // Step 1: O₃ cleaves the double bond to form ozonide intermediate
+  // Step 2: DMS reduces ozonide to carbonyls
+  {
+    id: 19,
+    title: "Ozonolysis",
+    reagents: "1. O₃ / 2. CH3OH",
+    description: "Oxidative Cleavage (Ring opens to Keto-Aldehyde)",
+    multiStep: true,
+    question: {
+      atoms: [ { "id": 1, "x": 240, "y": 138.56, "label": "" }, 
+               { "id": 2, "x": 300, "y": 173.21, "label": "" }, 
+               { "id": 3, "x": 300, "y": 242.49, "label": "" }, 
+               { "id": 4, "x": 240, "y": 277.13, "label": "" }, 
+               { "id": 5, "x": 180, "y": 242.49, "label": "" }, 
+               { "id": 6, "x": 180, "y": 173.21, "label": "" }, 
+               { "id": 7, "x": 350, "y": 138.56, "label": "CH3" },
+               { "id": 8, "x": 350, "y": 277.13, "label": "H" }, 
+              ],
+      bonds: [ { "id": 101, "from": 1, "to": 2, "order": 1, "style": "solid" }, 
+               { "id": 102, "from": 2, "to": 3, "order": 2, "style": "solid" }, 
+               { "id": 103, "from": 3, "to": 4, "order": 1, "style": "solid" }, 
+               { "id": 104, "from": 4, "to": 5, "order": 1, "style": "solid" }, 
+               { "id": 105, "from": 5, "to": 6, "order": 1, "style": "solid" }, 
+               { "id": 106, "from": 6, "to": 1, "order": 1, "style": "solid" }, 
+               { "id": 107, "from": 7, "to": 2, "order": 1, "style": "solid" },
+               { "id": 108, "from": 8, "to": 3, "order": 1, "style": "solid" }, ]
+    },
+    steps: [
+      {
+        reagents: "O₃/CH₃OH",
+        description: "Step 1: Ozonolysis — draw the ozonide intermediate",
+        solutions: [
+          {
+            atoms: [
+              { "id": 1, "x": 240, "y": 138.56, "label": "" },
+              { "id": 2, "x": 300, "y": 173.21, "label": "" },
+              { "id": 3, "x": 300, "y": 242.49, "label": "" },
+              { "id": 4, "x": 240, "y": 277.13, "label": "" },
+              { "id": 5, "x": 180, "y": 242.49, "label": "" },
+              { "id": 6, "x": 180, "y": 173.21, "label": "" },
+              { "id": 7, "x": 320, "y": 103.92 , "label": "" },
+              { "id": 8, "x": 370, "y": 138.56 , "label": "O" },
+              { "id": 9, "x": 370, "y": 277.13 , "label": "O" },
+              { "id": 10, "x": 300, "y": 311.77 , "label": "H" },
+              { "id": 11, "x": 240, "y": 207.85, "label": "O" },
+            ],
+            bonds: [
+              { "id": 101, "from": 1, "to": 2, "order": 1, "style": "solid" },
+
+              { "id": 103, "from": 3, "to": 4, "order": 1, "style": "solid" },
+              { "id": 104, "from": 4, "to": 5, "order": 1, "style": "solid" },
+              { "id": 105, "from": 5, "to": 6, "order": 1, "style": "solid" },
+              { "id": 106, "from": 6, "to": 1, "order": 1, "style": "solid" },
+              { "id": 107, "from": 7, "to": 2, "order": 1, "style": "solid" },
+              { "id": 108, "from": 2, "to": 8, "order": 1, "style": "solid" },
+              { "id": 109, "from": 3, "to": 9, "order": 1, "style": "solid" },
+              { "id": 110, "from": 8, "to": 9, "order": 1, "style": "solid" },
+              { "id": 111, "from": 3, "to": 10, "order": 1, "style": "solid" },
+              { "id": 112, "from": 3, "to": 11, "order": 1, "style": "solid" },
+              { "id": 113, "from": 2, "to": 11, "order": 1, "style": "solid" },
+            ]
+          }
+        ]
+      },
+      {
+        reagents: "DMS",
+        description: "Step 2: Reductive workup — draw the final product",
+        solutions: [
+          {
+            atoms: [
+              { "id": 1, "x": 100, "y": 207.85 , "label": "" },
+              { "id": 2, "x": 140, "y": 277.13, "label": "" },
+              { "id": 3, "x": 180, "y": 207.85, "label": "" },
+              { "id": 4, "x": 220, "y": 277.13, "label": "" },
+              { "id": 5, "x": 60, "y": 346.41 , "label": "O" },
+              { "id": 6, "x": 60, "y": 277.13, "label": "" },
+              { "id": 7, "x": 260, "y": 138.56, "label": "O" },
+              { "id": 8, "x": 20, "y": 207.85, "label": "H" },
+              { "id": 9, "x": 260, "y": 207.85, "label": "" },
+              { "id": 10, "x": 300, "y": 280, "label": "" },
+            ],
+            bonds: [
+              { "id": 101, "from": 1, "to": 2, "order": 1, "style": "solid" },
+              { "id": 102, "from": 2, "to": 3, "order": 1, "style": "solid" },
+              { "id": 103, "from": 3, "to": 4, "order": 1, "style": "solid" },
+              { "id": 104, "from": 6, "to": 5, "order": 2, "style": "solid" },
+              { "id": 105, "from": 1, "to": 6, "order": 1, "style": "solid" },
+              { "id": 106, "from": 9, "to": 7, "order": 2, "style": "solid" },
+              { "id": 107, "from": 6, "to": 8, "order": 1, "style": "solid" },
+              { "id": 108, "from": 4, "to": 9, "order": 1, "style": "solid" },
+              { "id": 109, "from": 9, "to": 10, "order": 1, "style": "solid" },
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+
+  {
+    id: 20,
+    title: "Ozonolysis",
+    reagents: "1. O₃ / 2. CH3OH",
+    description: "Oxidative Cleavage (Ring opens to Keto-Aldehyde)",
+    multiStep: true,
+    question: {
+      atoms: [ { "id": 1, "x": 240, "y": 138.56, "label": "" }, 
+               { "id": 2, "x": 300, "y": 173.21, "label": "" }, 
+               { "id": 3, "x": 300, "y": 242.49, "label": "" }, 
+               { "id": 4, "x": 240, "y": 277.13, "label": "" }, 
+               { "id": 5, "x": 180, "y": 242.49, "label": "" }, 
+               { "id": 6, "x": 180, "y": 173.21, "label": "" }, 
+               { "id": 7, "x": 350, "y": 138.56, "label": "CH3" },
+               { "id": 8, "x": 350, "y": 277.13, "label": "H" }, 
+              ],
+      bonds: [ { "id": 101, "from": 1, "to": 2, "order": 1, "style": "solid" }, 
+               { "id": 102, "from": 2, "to": 3, "order": 2, "style": "solid" }, 
+               { "id": 103, "from": 3, "to": 4, "order": 1, "style": "solid" }, 
+               { "id": 104, "from": 4, "to": 5, "order": 1, "style": "solid" }, 
+               { "id": 105, "from": 5, "to": 6, "order": 1, "style": "solid" }, 
+               { "id": 106, "from": 6, "to": 1, "order": 1, "style": "solid" }, 
+               { "id": 107, "from": 7, "to": 2, "order": 1, "style": "solid" },
+               { "id": 108, "from": 8, "to": 3, "order": 1, "style": "solid" }, ]
+    },
+    steps: [
+      {
+        reagents: "O₃/CH₃OH",
+        description: "Step 1: Ozonolysis — draw the ozonide intermediate",
+        solutions: [
+          {
+            atoms: [
+              { "id": 1, "x": 240, "y": 138.56, "label": "" },
+              { "id": 2, "x": 300, "y": 173.21, "label": "" },
+              { "id": 3, "x": 300, "y": 242.49, "label": "" },
+              { "id": 4, "x": 240, "y": 277.13, "label": "" },
+              { "id": 5, "x": 180, "y": 242.49, "label": "" },
+              { "id": 6, "x": 180, "y": 173.21, "label": "" },
+              { "id": 7, "x": 320, "y": 103.92 , "label": "" },
+              { "id": 8, "x": 370, "y": 138.56 , "label": "O" },
+              { "id": 9, "x": 370, "y": 277.13 , "label": "O" },
+              { "id": 10, "x": 300, "y": 311.77 , "label": "H" },
+              { "id": 11, "x": 240, "y": 207.85, "label": "O" },
+            ],
+            bonds: [
+              { "id": 101, "from": 1, "to": 2, "order": 1, "style": "solid" },
+
+              { "id": 103, "from": 3, "to": 4, "order": 1, "style": "solid" },
+              { "id": 104, "from": 4, "to": 5, "order": 1, "style": "solid" },
+              { "id": 105, "from": 5, "to": 6, "order": 1, "style": "solid" },
+              { "id": 106, "from": 6, "to": 1, "order": 1, "style": "solid" },
+              { "id": 107, "from": 7, "to": 2, "order": 1, "style": "solid" },
+              { "id": 108, "from": 2, "to": 8, "order": 1, "style": "solid" },
+              { "id": 109, "from": 3, "to": 9, "order": 1, "style": "solid" },
+              { "id": 110, "from": 8, "to": 9, "order": 1, "style": "solid" },
+              { "id": 111, "from": 3, "to": 10, "order": 1, "style": "solid" },
+              { "id": 112, "from": 3, "to": 11, "order": 1, "style": "solid" },
+              { "id": 113, "from": 2, "to": 11, "order": 1, "style": "solid" },
+            ]
+          }
+        ]
+      },
+      {
+        reagents: "H2O2",
+        description: "Step 2: Reductive workup — draw the final product",
+        solutions: [
+          {
+            atoms: [
+              { "id": 1, "x": 100, "y": 207.85 , "label": "" },
+              { "id": 2, "x": 140, "y": 277.13, "label": "" },
+              { "id": 3, "x": 180, "y": 207.85, "label": "" },
+              { "id": 4, "x": 220, "y": 277.13, "label": "" },
+              { "id": 5, "x": 60, "y": 346.41 , "label": "O" },
+              { "id": 6, "x": 60, "y": 277.13, "label": "" },
+              { "id": 7, "x": 260, "y": 138.56, "label": "O" },
+              { "id": 8, "x": 20, "y": 207.85, "label": "HO" },
+              { "id": 9, "x": 260, "y": 207.85, "label": "" },
+              { "id": 10, "x": 300, "y": 280, "label": "" },
+            ],
+            bonds: [
+              { "id": 101, "from": 1, "to": 2, "order": 1, "style": "solid" },
+              { "id": 102, "from": 2, "to": 3, "order": 1, "style": "solid" },
+              { "id": 103, "from": 3, "to": 4, "order": 1, "style": "solid" },
+              { "id": 104, "from": 6, "to": 5, "order": 2, "style": "solid" },
+              { "id": 105, "from": 1, "to": 6, "order": 1, "style": "solid" },
+              { "id": 106, "from": 9, "to": 7, "order": 2, "style": "solid" },
+              { "id": 107, "from": 6, "to": 8, "order": 1, "style": "solid" },
+              { "id": 108, "from": 4, "to": 9, "order": 1, "style": "solid" },
+              { "id": 109, "from": 9, "to": 10, "order": 1, "style": "solid" },
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
 ];
