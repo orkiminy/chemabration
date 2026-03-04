@@ -8,6 +8,8 @@ import OneStepReaction from './pages/OneStepReaction';
 import Mechanism from './pages/Mechanism';
 import Synthesis from './pages/Synthesis';
 import AnswerKey from './pages/AnswerKey';
+import ReactionExplorer from './pages/ReactionExplorer';
+import RuleBuilder from './pages/RuleBuilder';
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
           <Route path="/Mechanism" element={<PrivateRoute><Mechanism /></PrivateRoute>} />
           <Route path="/Synthesis" element={<PrivateRoute><Synthesis /></PrivateRoute>} />
           <Route path="/AnswerKey" element={<PrivateRoute><AnswerKey /></PrivateRoute>} />
+          <Route path="/ReactionExplorer" element={<PrivateRoute><ReactionExplorer /></PrivateRoute>} />
+          <Route path="/rule-builder" element={<PrivateRoute><RuleBuilder /></PrivateRoute>} />
         </Routes>
       </AuthProvider>
     </Router>

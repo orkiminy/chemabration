@@ -3,6 +3,7 @@ import SetCanvas from "./setCanvas";
 import ReactionArrow from "./addingReaction";
 import { reactionLevels } from "./data/reactionLevels.js";
 import { checkIsomorphism } from "./chemistryUtils";
+import { applyReaction, applyDescriptor } from "./engine/transformationEngine.js";
 
 // --- FIREBASE IMPORTS ---
 import { db } from './firebase';
@@ -35,7 +36,12 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [intermediateResult, setIntermediateResult] = useState(null);
 
-  const { user } = useAuth();
+  // Show Answer state
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [answerProducts, setAnswerProducts] = useState([]);
+  const [answerEnantiomerIndex, setAnswerEnantiomerIndex] = useState(0);
+
+const { user } = useAuth();
   const currentLevel = reactionLevels[levelIndex];
 
   /* Clear feedback when user modifies canvas */
@@ -202,7 +208,25 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
     return () => window.removeEventListener("keydown", handler);
   }, [selectedBond]);
 
-  /* ---------- CHECK ANSWER ---------- */
+  /* ---------- SHOW ANSWER ---------- */
+  const handleShowAnswer = () => {
+    if (showAnswer) {
+      setShowAnswer(false);
+      return;
+    }
+    let products;
+    if (currentLevel.multiStep && currentLevel.steps) {
+      // For multi-step: show the current step's stored solution
+      products = currentLevel.steps[currentStep].solutions || [];
+    } else {
+      products = applyReaction(currentLevel.id, currentLevel.question.atoms, currentLevel.question.bonds);
+    }
+    setAnswerProducts(products);
+    setAnswerEnantiomerIndex(0);
+    setShowAnswer(true);
+  };
+
+/* ---------- CHECK ANSWER ---------- */
   const advanceToNextQuestion = () => {
     const nextCount = questionCount + 1;
     saveAttempt(true);
@@ -218,6 +242,9 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
       setCurrentStep(0);
       setIntermediateResult(null);
       setQuestionStartTime(Date.now());
+      setShowAnswer(false);
+      setAnswerProducts([]);
+      setAnswerEnantiomerIndex(0);
     }, 1500);
   };
 
@@ -484,6 +511,8 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
                     <option value="S">S</option>
                     <option value="P">P</option>
                     <option value="OH">OH</option>
+                    <option value="Ph">Ph</option>
+                    <option value="CH3">CH3</option>
                   </select>
                   <select className="toolbar-select" value={bondStyle} onChange={(e) => setBondStyle(e.target.value)}>
                     <option value="solid">Solid (Line)</option>
@@ -497,11 +526,45 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
                 <button className="toolbar-btn toolbar-btn-check" onClick={checkAnswer}>
                   Check Answer
                 </button>
+                <button
+                  className="toolbar-btn"
+                  style={{ opacity: 0.75 }}
+                  onClick={handleShowAnswer}
+                >
+                  {showAnswer ? "Hide Answer" : "Show Answer"}
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Answer panel — shown when Show Answer is clicked */}
+      {showAnswer && answerProducts.length > 0 && (
+        <div style={{ marginTop: "1.5rem", borderTop: "2px solid #5f021f", paddingTop: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
+            <span style={{ fontWeight: "bold", color: "#5f021f" }}>Correct Answer:</span>
+            {answerProducts.length > 1 && (
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                {answerProducts.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`toolbar-btn${answerEnantiomerIndex === i ? " toolbar-btn-active" : ""}`}
+                    onClick={() => setAnswerEnantiomerIndex(i)}
+                  >
+                    Enantiomer {String.fromCharCode(65 + i)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <SetCanvas
+            atoms={answerProducts[answerEnantiomerIndex].atoms}
+            bonds={answerProducts[answerEnantiomerIndex].bonds}
+          />
+        </div>
+      )}
+
     </div>
   );
 }
