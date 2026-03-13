@@ -21,6 +21,24 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
     return points;
   }, []);
 
+  /* ---------- GRID SNAP HELPER ---------- */
+  const ROW_H = GRID_SPACING * Math.sin(Math.PI / 3);
+  function snapToGrid(x, y) {
+    const nearRow = Math.round(y / ROW_H);
+    let best = null, bestDist = Infinity;
+    for (let r = nearRow - 1; r <= nearRow + 1; r++) {
+      const gy = r * ROW_H;
+      const offset = ((r % 2) + 2) % 2 === 0 ? 0 : GRID_SPACING / 2;
+      const nearCol = Math.round((x - offset) / GRID_SPACING);
+      for (let c = nearCol - 1; c <= nearCol + 1; c++) {
+        const gx = c * GRID_SPACING + offset;
+        const d = Math.hypot(gx - x, gy - y);
+        if (d < bestDist) { bestDist = d; best = { x: gx, y: gy }; }
+      }
+    }
+    return best ?? { x, y };
+  }
+
   /* ---------- AUTO-CENTER ATOMS ---------- */
   const centeredAtoms = useMemo(() => {
     if (atoms.length === 0) return atoms;
@@ -30,10 +48,17 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
 
-    const dx = WIDTH / 2 - cx;
-    const dy = HEIGHT / 2 - cy;
+    const dx_raw = WIDTH / 2 - cx;
+    const dy_raw = HEIGHT / 2 - cy;
 
-    // Translate all atoms by the same offset — preserves relative positions
+    // Snap the centering offset to the nearest grid-preserving translation.
+    // All atoms share the same triangular lattice, so snapping via one reference
+    // atom keeps every atom on a grid point after the shift.
+    const ref = atoms[0];
+    const snapped = snapToGrid(ref.x + dx_raw, ref.y + dy_raw);
+    const dx = snapped.x - ref.x;
+    const dy = snapped.y - ref.y;
+
     return atoms.map(a => ({ ...a, x: a.x + dx, y: a.y + dy }));
   }, [atoms]);
 
@@ -85,6 +110,7 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
               r={ATOM_RADIUS}
               fill="#5f021f"
             />
+            {atom.label && atom.label !== 'C' && (
             <text
               x={atom.x}
               y={atom.y + 4}
@@ -94,6 +120,7 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
             >
               {atom.label}
             </text>
+          )}
           </g>
         ))}
       </svg>

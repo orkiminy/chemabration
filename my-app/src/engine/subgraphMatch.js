@@ -37,12 +37,49 @@ function buildAdj(atoms, bonds) {
 }
 
 /**
+ * For each R atom in the pattern, BFS through the molecule from the matched
+ * attachment atom to collect the full substituent subgraph (the "R group").
+ * Stops at any atom that is part of the core pattern match.
+ * Returns Map<patternAtomId, Set<molAtomId>>.
+ */
+function computeRGroupCaptures(p2m, patternAtoms, molAdj) {
+  const captures = new Map();
+  const coreMatchedMolIds = new Set(p2m.values());
+
+  for (const patAtom of patternAtoms) {
+    const label = (patAtom.label || 'C').trim();
+    if (label !== 'R') continue;
+
+    const rootMolId = p2m.get(patAtom.id);
+    if (rootMolId === undefined) continue;
+
+    const group = new Set();
+    const queue = [rootMolId];
+    group.add(rootMolId);
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      for (const { neighbor } of (molAdj.get(current) || [])) {
+        if (group.has(neighbor)) continue;
+        if (coreMatchedMolIds.has(neighbor)) continue; // stop at core pattern atoms
+        group.add(neighbor);
+        queue.push(neighbor);
+      }
+    }
+
+    captures.set(patAtom.id, group);
+  }
+
+  return captures;
+}
+
+/**
  * Find all subgraph matches of (patternAtoms, patternBonds) inside (molAtoms, molBonds).
  * Returns an array of Maps: patternAtomId → molAtomId.
  * Returns [] if no match found.
  */
 export function findMatches(patternAtoms, patternBonds, molAtoms, molBonds) {
-  if (patternAtoms.length === 0) return [new Map()];
+  if (patternAtoms.length === 0) return [{ mapping: new Map(), rGroupCaptures: new Map() }];
 
   const patAdj = buildAdj(patternAtoms, patternBonds);
   const molAdj = buildAdj(molAtoms, molBonds);
@@ -58,7 +95,8 @@ export function findMatches(patternAtoms, patternBonds, molAtoms, molBonds) {
 
   function backtrack(idx) {
     if (idx === sorted.length) {
-      matches.push(new Map(p2m));
+      const rGroupCaptures = computeRGroupCaptures(p2m, patternAtoms, molAdj);
+      matches.push({ mapping: new Map(p2m), rGroupCaptures });
       return;
     }
 

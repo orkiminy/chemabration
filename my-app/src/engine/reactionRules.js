@@ -25,7 +25,79 @@ const GRID_SPACING = 40;
 const ROW_H = GRID_SPACING * Math.sin(Math.PI / 3);
 const HALOGENS = ['Br', 'Cl', 'F', 'I'];
 
-// ─── POSITION HELPER ──────────────────────────────────────────────────────────
+// ─── POSITION HELPERS ─────────────────────────────────────────────────────────
+
+/**
+ * Compute the least-squares similarity transform (translation + rotation + uniform scale)
+ * that maps pattern atom positions → matched molecule atom positions.
+ * Returns a function (x, y) → {x, y}.
+ */
+function computePatternToMolTransform(patternAtoms, molAtoms, mapping) {
+  const pairs = [];
+  for (const [patId, molId] of mapping) {
+    const p = patternAtoms.find(a => a.id === patId);
+    const m = molAtoms.find(a => a.id === molId);
+    if (p && m) pairs.push({ p, m });
+  }
+
+  if (pairs.length === 0) return (x, y) => ({ x, y });
+
+  if (pairs.length === 1) {
+    const dx = pairs[0].m.x - pairs[0].p.x;
+    const dy = pairs[0].m.y - pairs[0].p.y;
+    return (x, y) => ({ x: x + dx, y: y + dy });
+  }
+
+  // Closed-form least-squares: m = a*p - b*p_perp + t
+  // where a = s·cos θ, b = s·sin θ
+  const n = pairs.length;
+  const px_mean = pairs.reduce((s, { p }) => s + p.x, 0) / n;
+  const py_mean = pairs.reduce((s, { p }) => s + p.y, 0) / n;
+  const mx_mean = pairs.reduce((s, { m }) => s + m.x, 0) / n;
+  const my_mean = pairs.reduce((s, { m }) => s + m.y, 0) / n;
+
+  let num_a = 0, num_b = 0, denom = 0;
+  for (const { p, m } of pairs) {
+    const cpx = p.x - px_mean, cpy = p.y - py_mean;
+    const cmx = m.x - mx_mean, cmy = m.y - my_mean;
+    num_a += cpx * cmx + cpy * cmy;
+    num_b += cpx * cmy - cpy * cmx;
+    denom += cpx * cpx + cpy * cpy;
+  }
+
+  if (denom < 1e-6) {
+    const dx = mx_mean - px_mean, dy = my_mean - py_mean;
+    return (x, y) => ({ x: x + dx, y: y + dy });
+  }
+
+  const a = num_a / denom;
+  const b = num_b / denom;
+  const tx = mx_mean - (a * px_mean - b * py_mean);
+  const ty = my_mean - (b * px_mean + a * py_mean);
+
+  return (x, y) => ({ x: a * x - b * y + tx, y: b * x + a * y + ty });
+}
+
+/**
+ * Snap a position to the nearest point on the triangular grid used by the canvases.
+ */
+function snapToGrid(x, y) {
+  const rowH = GRID_SPACING * Math.sin(Math.PI / 3);
+  const nearRow = Math.round(y / rowH);
+  let best = null;
+  let bestDist = Infinity;
+  for (let r = nearRow - 1; r <= nearRow + 1; r++) {
+    const gy = r * rowH;
+    const offset = ((r % 2) + 2) % 2 === 0 ? 0 : GRID_SPACING / 2;
+    const nearCol = Math.round((x - offset) / GRID_SPACING);
+    for (let c = nearCol - 1; c <= nearCol + 1; c++) {
+      const gx = c * GRID_SPACING + offset;
+      const d = Math.hypot(gx - x, gy - y);
+      if (d < bestDist) { bestDist = d; best = { x: gx, y: gy }; }
+    }
+  }
+  return best ?? { x, y };
+}
 
 function findOpenNeighbor(atomId, allAtoms) {
   const atom = allAtoms.find(a => a.id === atomId);
@@ -128,17 +200,45 @@ function computeDelta(patternAtoms, patternBonds, resultAtoms, resultBonds) {
  *
  * Returns { atoms, bonds } — the full transformed molecule.
  */
-function applyDelta(molAtoms, molBonds, delta, match) {
+function applyDelta(molAtoms, molBonds, delta, match, rGroupCaptures, addedAtomPositions = new Map()) {
   let newAtoms = molAtoms.map(a => ({ ...a }));
   let newBonds = molBonds.map(b => ({ ...b }));
   let idCounter = Date.now();
 
-  // 1. Remove atoms (and all their bonds)
+  // Pre-scan: find R-removal/replacement pairs.
+  // When R has different IDs in pattern vs result (rule built without Copy Left→Right),
+  // the delta shows R as "removed + new R added". Instead, we treat this as KEEP:
+  // skip both the removal and the addition, and remap the replacement R's ID to the
+  // original matched mol atom. This preserves the real atom (and its whole group)
+  // with its original label, and any bonds from the "result R" attach to it normally.
+  // Key: addedAtom.id of the replacement R → molAtomId to use in its place
+  const rSkip = new Map(); // replacementR.id → originalMolId
+  const rSkipPids = new Set(); // pattern atom IDs whose removal should be skipped
   delta.removedAtomIds.forEach(pid => {
     const mid = match.get(pid);
     if (mid === undefined) return;
-    newAtoms = newAtoms.filter(a => a.id !== mid);
-    newBonds = newBonds.filter(b => b.from !== mid && b.to !== mid);
+    const groupIds = rGroupCaptures?.get(pid);
+    if (!groupIds) return; // only applies to R wildcards (which have captures)
+    const replacementR = delta.addedAtoms.find(
+      a => (a.label || 'C').trim() === 'R' && !rSkip.has(a.id)
+    );
+    if (!replacementR) return;
+    rSkip.set(replacementR.id, mid);
+    rSkipPids.add(pid);
+  });
+
+  // 1. Remove atoms (and all their bonds).
+  // If the removed atom was an R wildcard, remove the entire captured R group —
+  // UNLESS it pairs with a replacement R (rSkipPids), in which case we keep
+  // everything and just remap the replacement R's bonds to the original atom.
+  delta.removedAtomIds.forEach(pid => {
+    const mid = match.get(pid);
+    if (mid === undefined) return;
+    if (rSkipPids.has(pid)) return; // keep the original atom and its whole group
+
+    const groupIds = rGroupCaptures?.get(pid) ?? new Set([mid]);
+    newAtoms = newAtoms.filter(a => !groupIds.has(a.id));
+    newBonds = newBonds.filter(b => !groupIds.has(b.from) && !groupIds.has(b.to));
   });
 
   // 2. Update bond orders/styles between kept atoms
@@ -173,16 +273,28 @@ function applyDelta(molAtoms, molBonds, delta, match) {
   // 5. Add new atoms — position near their bonded kept atom
   const idRemap = new Map(); // pattern new-atom id → actual molecule id
   delta.addedAtoms.forEach(atom => {
+    // If this is a replacement R that pairs with a kept original atom, skip adding
+    // a new atom entirely — just alias the replacement R's ID to the original mol atom.
+    // Any bonds in addedBonds that reference this atom will then attach to the real atom.
+    if (rSkip.has(atom.id)) {
+      idRemap.set(atom.id, rSkip.get(atom.id));
+      return;
+    }
+
     const newId = idCounter++;
     idRemap.set(atom.id, newId);
 
-    // Find parent: the already-mapped atom this new atom bonds to
-    const parentBond = delta.addedBonds.find(b => b.from === atom.id || b.to === atom.id);
-    let pos = { x: 100, y: 100 };
-    if (parentBond) {
-      const parentPatId = parentBond.from === atom.id ? parentBond.to : parentBond.from;
-      const parentMolId = match.get(parentPatId) ?? idRemap.get(parentPatId);
-      if (parentMolId !== undefined) pos = findOpenNeighbor(parentMolId, newAtoms);
+    // Use the answer-key-aligned position if available (computed via similarity transform),
+    // otherwise fall back to finding an open neighbour slot.
+    let pos = addedAtomPositions.get(atom.id) ?? null;
+    if (!pos) {
+      const parentBond = delta.addedBonds.find(b => b.from === atom.id || b.to === atom.id);
+      pos = { x: 100, y: 100 };
+      if (parentBond) {
+        const parentPatId = parentBond.from === atom.id ? parentBond.to : parentBond.from;
+        const parentMolId = match.get(parentPatId) ?? idRemap.get(parentPatId);
+        if (parentMolId !== undefined) pos = findOpenNeighbor(parentMolId, newAtoms);
+      }
     }
     newAtoms.push({ id: newId, label: atom.label || 'C', x: pos.x, y: pos.y });
   });
@@ -268,7 +380,22 @@ export function applyRule(molAtoms, molBonds, rule) {
   }
 
   // Apply the delta at the first match location
-  const { atoms, bonds } = applyDelta(molAtoms, molBonds, delta, matches[0]);
+  const { mapping, rGroupCaptures } = matches[0];
+
+  // Compute the similarity transform (translation + rotation + scale) that maps
+  // the rule's pattern canvas coordinates to the molecule's actual coordinates.
+  // Then apply it to every added atom's answer-key position so new atoms land
+  // in the right place relative to the matched mol atoms.
+  const xform = computePatternToMolTransform(patternAtoms, molAtoms, mapping);
+  const addedAtomPositions = new Map();
+  (rule.resultAtoms || []).forEach(ra => {
+    if (delta.addedAtoms.some(a => a.id === ra.id)) {
+      const { x, y } = xform(ra.x, ra.y);
+      addedAtomPositions.set(ra.id, snapToGrid(x, y));
+    }
+  });
+
+  const { atoms, bonds } = applyDelta(molAtoms, molBonds, delta, mapping, rGroupCaptures, addedAtomPositions);
   return {
     products: [{ atoms, bonds }],
     explanation: rule.explanation || '',
