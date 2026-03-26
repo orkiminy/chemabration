@@ -60,7 +60,7 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
     const dy = snapped.y - ref.y;
 
     return atoms.map(a => ({ ...a, x: a.x + dx, y: a.y + dy }));
-  }, [atoms]);
+  }, [atoms]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ fontFamily: "Arial" }}>

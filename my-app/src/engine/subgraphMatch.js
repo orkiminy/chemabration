@@ -33,8 +33,8 @@ function labelsMatch(patLabel, molLabel) {
 function buildAdj(atoms, bonds) {
   const adj = new Map(atoms.map(a => [a.id, []]));
   bonds.forEach(b => {
-    adj.get(b.from)?.push({ neighbor: b.to,   order: b.order, style: b.style });
-    adj.get(b.to)  ?.push({ neighbor: b.from,  order: b.order, style: b.style });
+    adj.get(b.from)?.push({ neighbor: b.to, order: b.order, style: b.style });
+    adj.get(b.to)?.push({ neighbor: b.from, order: b.order, style: b.style });
   });
   return adj;
 }

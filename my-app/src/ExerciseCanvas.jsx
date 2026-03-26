@@ -3,7 +3,7 @@ import SetCanvas from "./setCanvas";
 import ReactionArrow from "./addingReaction";
 import { reactionLevels } from "./data/reactionLevels.js";
 import { checkIsomorphism } from "./chemistryUtils";
-import { applyReaction, applyDescriptor } from "./engine/transformationEngine.js";
+import { applyReaction } from "./engine/transformationEngine.js";
 
 // --- FIREBASE IMPORTS ---
 import { db } from './firebase';
