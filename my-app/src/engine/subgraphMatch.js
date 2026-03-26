@@ -23,6 +23,9 @@ function labelsMatch(patLabel, molLabel) {
   if (pl === 'R') return true;
   if (pl === 'X') return HALOGENS.includes(ml);
   if (pl === 'C') return ml === 'C' || ml === '';
+  // OH single-atom is equivalent to O (the H is implicit / drawn separately)
+  if (pl === 'OH' && (ml === 'O' || ml === 'OH')) return true;
+  if (pl === 'O' && ml === 'OH') return true;
   return pl === ml;
 }
 

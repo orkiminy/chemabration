@@ -39,8 +39,23 @@ function buildGraph(atoms, bonds) {
   return adjList;
 }
 
-export function checkIsomorphism(userAtoms, userBonds, solutionAtoms, solutionBonds) {
-  // 1. Basic counts check
+// Expand any OH single-atom into an O atom + H atom + bond, so that
+// drawing OH as one node is equivalent to drawing O connected to H.
+function normalizeOH(atoms, bonds) {
+  let nextId = Math.max(0, ...atoms.map(a => a.id)) + 10000;
+  let newAtoms = atoms.map(a => a.label === 'OH' ? { ...a, label: 'O' } : a);
+  let newBonds = [...bonds];
+  atoms.forEach(a => {
+    if (a.label === 'OH') {
+      const hId = nextId++;
+      newAtoms.push({ id: hId, x: a.x, y: a.y, label: 'H' });
+      newBonds.push({ id: nextId++, from: a.id, to: hId, order: 1, style: 'solid' });
+    }
+  });
+  return { atoms: newAtoms, bonds: newBonds };
+}
+
+function rawIsomorphism(userAtoms, userBonds, solutionAtoms, solutionBonds) {
   if (userAtoms.length !== solutionAtoms.length) return false;
   if (userBonds.length !== solutionBonds.length) return false;
 
@@ -79,4 +94,13 @@ export function checkIsomorphism(userAtoms, userBonds, solutionAtoms, solutionBo
 
   // 3. Compare
   return JSON.stringify(userFingerprint) === JSON.stringify(solFingerprint);
+}
+
+export function checkIsomorphism(userAtoms, userBonds, solutionAtoms, solutionBonds) {
+  // Try direct match first
+  if (rawIsomorphism(userAtoms, userBonds, solutionAtoms, solutionBonds)) return true;
+  // Try with OH normalized to O+H on both sides so either representation is accepted
+  const u = normalizeOH(userAtoms, userBonds);
+  const s = normalizeOH(solutionAtoms, solutionBonds);
+  return rawIsomorphism(u.atoms, u.bonds, s.atoms, s.bonds);
 }

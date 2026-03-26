@@ -74,13 +74,13 @@ function CanvasEditor({ atoms, setAtoms, bonds, setBonds, label }) {
   };
 
   useEffect(() => {
-    const ATOM_KEYS = {
-      c: 'C', h: 'H', o: 'O', n: 'N',
-      f: 'F', i: 'I', s: 'S', p: 'P',
-      b: 'Br', l: 'Cl', r: 'R', x: 'X',
+    const ATOM_CODES = {
+      KeyC: 'C', KeyH: 'H', KeyO: 'O', KeyN: 'N',
+      KeyF: 'F', KeyI: 'I', KeyS: 'S', KeyP: 'P',
+      KeyB: 'Br', KeyL: 'Cl', KeyR: 'R', KeyX: 'X',
     };
     const handler = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
       // Undo
       if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
@@ -118,7 +118,7 @@ function CanvasEditor({ atoms, setAtoms, bonds, setBonds, label }) {
         return;
       }
 
-      const newLabel = ATOM_KEYS[e.key.toLowerCase()];
+      const newLabel = ATOM_CODES[e.code];
       if (!newLabel) return;
 
       // Relabel selected atom
