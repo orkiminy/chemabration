@@ -231,7 +231,7 @@ function applyDelta(molAtoms, molBonds, delta, match, rGroupCaptures, addedAtomP
     const groupIds = rGroupCaptures?.get(pid);
     if (groupIds) {
       const replacementR = delta.addedAtoms.find(
-        a => (a.label || 'C').trim() === 'R' && !rSkip.has(a.id)
+        a => { const l = (a.label || 'C').trim(); return (l === 'R' || l === "R'") && !rSkip.has(a.id); }
       );
       if (replacementR) {
         rSkip.set(replacementR.id, mid);

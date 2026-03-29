@@ -81,11 +81,19 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
           const a2 = centeredAtoms.find(a => a.id === bond.to);
           if (!a1 || !a2) return null;
 
-          const dx = a2.y - a1.y;
-          const dy = a2.x - a1.x;
-          const len = Math.sqrt(dx * dx + dy * dy) || 1;
-          const offsetX = (dx / len) * 4;
-          const offsetY = (dy / len) * 4;
+          const bpDx = a2.y - a1.y;
+          const bpDy = a2.x - a1.x;
+          const len = Math.sqrt(bpDx * bpDx + bpDy * bpDy) || 1;
+          let offsetX = (bpDx / len) * 4;
+          let offsetY = (bpDy / len) * 4;
+
+          // For ring bonds with order > 1, flip the offset so the inner line faces the ring center
+          if (bond.ringCenter && (bond.order || 1) > 1) {
+            const midX = (a1.x + a2.x) / 2;
+            const midY = (a1.y + a2.y) / 2;
+            const dot = offsetX * (bond.ringCenter.x - midX) + (-offsetY) * (bond.ringCenter.y - midY);
+            if (dot < 0) { offsetX = -offsetX; offsetY = -offsetY; }
+          }
 
           return [...Array(bond.order || 1)].map((_, i) => (
             <line

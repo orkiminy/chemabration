@@ -1,5 +1,37 @@
 import React from "react";
-import { autoSubscript } from "./engine/reactionRules";
+
+// Renders a chemical formula string with subscript numbers and superscript charges.
+// e.g. "H3O+" → H<sub>3</sub>O<sup>+</sup>
+function renderChemical(str) {
+  if (!str) return str;
+  // Normalise unicode subscript/superscript digits to plain ASCII first
+  const SUB_TO_PLAIN = {'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9'};
+  const s = str.replace(/[₀₁₂₃₄₅₆₇₈₉]/g, c => SUB_TO_PLAIN[c] || c);
+
+  const parts = [];
+  // Match: subscript digits after a letter/closing paren, OR a charge (+/-) at the end of a token
+  const re = /([A-Za-z\d)]+?)(\d+)|([+-])(?=[A-Z()\s]|$)/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) parts.push(s.slice(last, m.index));
+    if (m[2]) {
+      // subscript: letter(s) followed by digits
+      parts.push(m[1]);
+      parts.push(
+        <sub key={m.index} style={{ fontSize: "0.72em" }}>{m[2]}</sub>
+      );
+    } else {
+      // superscript charge: + or -
+      parts.push(
+        <sup key={m.index} style={{ fontSize: "0.72em" }}>{m[3]}</sup>
+      );
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push(s.slice(last));
+  return parts.length > 0 ? parts : s;
+}
 
 export default function ReactionArrow({ text }) {
   // Split the text string "H₂ / Pt" into two parts: ["H₂", "Pt"]
@@ -15,20 +47,20 @@ export default function ReactionArrow({ text }) {
       padding: "10px",
       // Removed border/background so it looks cleaner between the canvases
       justifyContent: "center",
-      minWidth: "60px" 
+      minWidth: "60px"
     }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
         {/* Top Reagent (e.g. H₂) */}
         <div style={{ fontWeight: "bold", fontSize: "18px", marginBottom: "-5px" }}>
-          {autoSubscript(top)}
+          {renderChemical(top)}
         </div>
-        
+
         {/* The Arrow */}
         <div style={{ fontSize: "28px", fontWeight: "bold", color: "#333" }}>→</div>
-        
+
         {/* Bottom Reagent (e.g. Pt) */}
         <div style={{ fontWeight: "bold", fontSize: "14px", marginTop: "-5px" }}>
-          {autoSubscript(bottom)}
+          {renderChemical(bottom)}
         </div>
       </div>
     </div>

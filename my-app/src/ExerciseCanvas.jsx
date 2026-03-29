@@ -184,6 +184,10 @@ const { user } = useAuth();
     const ts = Date.now();
     const newAtoms = [];
     const idMap = {};
+    const ringCenter = {
+      x: tmpl.offsets.reduce((s, o) => s + baseX + o.dx, 0) / tmpl.offsets.length,
+      y: tmpl.offsets.reduce((s, o) => s + baseY + o.dy, 0) / tmpl.offsets.length,
+    };
     tmpl.offsets.forEach(({ dx, dy }, i) => {
       const x = baseX + dx, y = baseY + dy;
       const existing = currentAtoms.find(a => Math.round(a.x) === Math.round(x) && Math.round(a.y) === Math.round(y));
@@ -191,7 +195,7 @@ const { user } = useAuth();
       else { idMap[i] = ts + i; newAtoms.push({ id: ts + i, x, y, label: 'C' }); }
     });
     const newBonds = tmpl.bonds
-      .map((b, i) => ({ id: ts + 100 + i, from: idMap[b.a], to: idMap[b.b], order: b.order, style: 'solid' }))
+      .map((b, i) => ({ id: ts + 100 + i, from: idMap[b.a], to: idMap[b.b], order: b.order, style: 'solid', ringCenter }))
       .filter(nb => !currentBonds.some(eb =>
         (eb.from === nb.from && eb.to === nb.to) || (eb.from === nb.to && eb.to === nb.from)
       ));
@@ -580,11 +584,18 @@ const { user } = useAuth();
                   );
                 }
 
-                const dx = a2.y - a1.y;
-                const dy = a2.x - a1.x;
-                const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                const offsetX = (dx / len) * 4;
-                const offsetY = (dy / len) * 4;
+                const bpDx = a2.y - a1.y;
+                const bpDy = a2.x - a1.x;
+                const len = Math.sqrt(bpDx * bpDx + bpDy * bpDy) || 1;
+                let offsetX = (bpDx / len) * 4;
+                let offsetY = (bpDy / len) * 4;
+
+                if (bond.ringCenter && (bond.order || 1) > 1) {
+                  const midX = (a1.x + a2.x) / 2;
+                  const midY = (a1.y + a2.y) / 2;
+                  const dot = offsetX * (bond.ringCenter.x - midX) + (-offsetY) * (bond.ringCenter.y - midY);
+                  if (dot < 0) { offsetX = -offsetX; offsetY = -offsetY; }
+                }
 
                 return (
                   <g key={bond.id}>
@@ -700,7 +711,6 @@ const { user } = useAuth();
                     <option value="P">P</option>
                     <option value="OH">OH</option>
                     <option value="Ph">Ph</option>
-                    <option value="CH3">CH3</option>
                   </select>
                   <select className="toolbar-select" value={bondStyle} onChange={(e) => setBondStyle(e.target.value)}>
                     <option value="solid">Solid (Line)</option>

@@ -7,10 +7,8 @@ function Footer() {
                         <div className="col d-flex">
                             <h4>INFORMATION</h4>
                             <Link to="/about">About Us</Link>
-                            <a href="#contact">Contact Us</a>
                             </div>
                             <div className="col d-flex">
-                            <h4>USEFUL LINKS</h4>
                             </div>
                             <div className="col d-flex">
 <span><a href="https://instagram.com/chemebration_" target="_blank" rel="noreferrer"><i className='bx bxl-instagram-alt'></i></a></span>

@@ -104,17 +104,6 @@ function Header() {
             </Link>
           </li>
           <li className='subcategories-org'>
-             <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
-                      fill="transparent"
-                      stroke="#5f021f"
-                      strokeWidth="4"/>
-            </svg>
-            <Link to="/Mechanism">
-              Mechanism
-            </Link>
-          </li>
-          <li className='subcategories-org'>
             <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
               <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
                       fill="transparent"
