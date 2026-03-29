@@ -1,3 +1,5 @@
 node_modules/
 my-app.zip
 .DS_Store
+.vercel
+.env*.local

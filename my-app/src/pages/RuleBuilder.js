@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { extractRule, saveRule, loadRules, deleteRule } from "../engine/reactionRules";
+import { extractRule, saveRule, loadRules, deleteRule, updateRule } from "../engine/reactionRules";
 import "../App.css";
 
 const WIDTH = 400;
@@ -33,9 +33,64 @@ const RING_TEMPLATES = {
   },
 };
 
+// ─── Read-only molecule renderer (used in View modal) ────────────────────────
+
+function MoleculeView({ atoms, bonds, width = 200, height = 200 }) {
+  const atomRadius = (lbl) => (lbl && lbl.length > 1 ? 18 : ATOM_RADIUS);
+  return (
+    <svg width={width} height={height} viewBox="0 0 400 400"
+      style={{ display: "block", background: "#fff", border: "1px solid #ccc", borderRadius: 6 }}>
+      {bonds.map(bond => {
+        const a1 = atoms.find(a => a.id === bond.from);
+        const a2 = atoms.find(a => a.id === bond.to);
+        if (!a1 || !a2) return null;
+        if (bond.style === "wedge") {
+          const angle = Math.atan2(a2.y - a1.y, a2.x - a1.x);
+          const w = 6;
+          const perp = angle + Math.PI / 2;
+          return (
+            <polygon key={bond.id}
+              points={`${a1.x},${a1.y} ${a2.x + Math.cos(perp) * w},${a2.y + Math.sin(perp) * w} ${a2.x - Math.cos(perp) * w},${a2.y - Math.sin(perp) * w}`}
+              fill="#000" />
+          );
+        }
+        const dx = a2.y - a1.y;
+        const dy = a2.x - a1.x;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ox = (dx / len) * 4;
+        const oy = (dy / len) * 4;
+        return (
+          <g key={bond.id}>
+            {Array.from({ length: bond.order ?? 1 }).map((_, i) => (
+              <line key={i}
+                x1={a1.x + ox * i} y1={a1.y - oy * i}
+                x2={a2.x + ox * i} y2={a2.y - oy * i}
+                stroke="#000" strokeWidth="3"
+                strokeDasharray={bond.style === "striped" ? "6,4" : "0"} />
+            ))}
+          </g>
+        );
+      })}
+      {atoms.map(atom => {
+        const isC = !atom.label || atom.label === "C";
+        return (
+          <g key={atom.id}>
+            {!isC && <circle cx={atom.x} cy={atom.y} r={atomRadius(atom.label)} fill="#5f021f" />}
+            {!isC && (
+              <text x={atom.x} y={atom.y + 4} textAnchor="middle" fontSize="12" fill="#fff">
+                {atom.label}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 // ─── Reusable interactive canvas panel ───────────────────────────────────────
 
-function CanvasEditor({ atoms, setAtoms, bonds, setBonds, label }) {
+function CanvasEditor({ atoms, setAtoms, bonds, setBonds, label, initialAtoms, initialBonds, resetKey }) {
   const [selectedAtom, setSelectedAtom] = useState(null);
   const [selectedBond, setSelectedBond] = useState(null);
   const [tool, setTool] = useState("pencil");
@@ -46,6 +101,16 @@ function CanvasEditor({ atoms, setAtoms, bonds, setBonds, label }) {
   const [dragFrom, setDragFrom] = useState(null);
   const [dragTo, setDragTo] = useState(null);
   const [ringType, setRingType] = useState(null);
+
+  useEffect(() => {
+    if (resetKey === null || resetKey === undefined) return;
+    setAtoms(initialAtoms ?? []);
+    setBonds(initialBonds ?? []);
+    setHistory([]);
+    setFuture([]);
+    setSelectedAtom(null);
+    setSelectedBond(null);
+  }, [resetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveHistory = (currentAtoms, currentBonds) => {
     setHistory(h => [...h.slice(-30), { atoms: currentAtoms, bonds: currentBonds }]);
@@ -437,7 +502,11 @@ export default function RuleBuilder() {
   const [reagentSteps, setReagentSteps] = useState([""]);
   const [ruleName, setRuleName] = useState("");
   const [explanation, setExplanation] = useState("");
+  const [reactionType, setReactionType] = useState("");
   const [saveMsg, setSaveMsg] = useState("");
+  const [editingRule, setEditingRule] = useState(null);
+  const [viewRule, setViewRule] = useState(null);
+  const [resetKey, setResetKey] = useState(null);
 
   // Use the first non-empty step as the reagent for matching
   const reagent = reagentSteps.map(s => s.trim()).filter(Boolean).join(" / ");
@@ -469,22 +538,43 @@ export default function RuleBuilder() {
       reagent: reagent.trim(),
       name: ruleName.trim() || reagent.trim(),
       explanation: explanation.trim(),
+      reactionType: reactionType.trim(),
       ...snapshot,
     };
 
     setSaveMsg("Saving...");
-    await saveRule(rule);
+    if (editingRule) {
+      await updateRule(editingRule.id, rule);
+    } else {
+      await saveRule(rule);
+    }
     const updated = await loadRules();
     setRules(updated);
-    setSaveMsg(`Rule "${rule.name}" saved!`);
+    setSaveMsg(editingRule ? `Rule "${rule.name}" updated!` : `Rule "${rule.name}" saved!`);
     setReagentSteps([""]);
     setRuleName("");
     setExplanation("");
+    setReactionType("");
+    setEditingRule(null);
   };
 
   const handleDelete = async (ruleId) => {
     await deleteRule(ruleId);
     setRules(await loadRules());
+  };
+
+  const handleEdit = (rule) => {
+    setLeftAtoms(rule.patternAtoms ?? []);
+    setLeftBonds(rule.patternBonds ?? []);
+    setRightAtoms(rule.resultAtoms ?? []);
+    setRightBonds(rule.resultBonds ?? []);
+    setReagentSteps(rule.reagent ? rule.reagent.split(" / ") : [""]);
+    setRuleName(rule.name ?? "");
+    setExplanation(rule.explanation ?? "");
+    setReactionType(rule.reactionType ?? "");
+    setEditingRule(rule);
+    setViewRule(null);
+    setResetKey(k => (k ?? 0) + 1);
   };
 
   return (
@@ -507,6 +597,8 @@ export default function RuleBuilder() {
               atoms={leftAtoms} setAtoms={setLeftAtoms}
               bonds={leftBonds} setBonds={setLeftBonds}
               label="Reactant"
+              initialAtoms={leftAtoms} initialBonds={leftBonds}
+              resetKey={resetKey}
             />
           </div>
 
@@ -548,6 +640,8 @@ export default function RuleBuilder() {
               atoms={rightAtoms} setAtoms={setRightAtoms}
               bonds={rightBonds} setBonds={setRightBonds}
               label="Product"
+              initialAtoms={rightAtoms} initialBonds={rightBonds}
+              resetKey={resetKey}
             />
           </div>
         </div>
@@ -574,9 +668,30 @@ export default function RuleBuilder() {
               style={{ padding: "6px 10px", border: "1px solid #ccc", borderRadius: "6px", fontSize: "1rem", width: "300px" }}
             />
           </div>
-          <button className="toolbar-btn toolbar-btn-check" onClick={handleSave}>
-            Save Rule
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <label style={{ fontSize: "0.85rem", color: "#666" }}>Reaction type (optional)</label>
+            <input
+              type="text"
+              value={reactionType}
+              onChange={(e) => setReactionType(e.target.value)}
+              placeholder="e.g. Electrophilic Addition"
+              style={{ padding: "6px 10px", border: "1px solid #ccc", borderRadius: "6px", fontSize: "1rem", width: "220px" }}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" }}>
+            {editingRule && (
+              <div style={{ padding: "5px 10px", background: "#fff3cd", border: "1px solid #ffc107", borderRadius: "6px", fontSize: "0.85rem", color: "#856404" }}>
+                Editing: <strong>{editingRule.name}</strong>
+                <span
+                  onClick={() => { setEditingRule(null); setReagentSteps([""]); setRuleName(""); setExplanation(""); setReactionType(""); }}
+                  style={{ marginLeft: "10px", cursor: "pointer", color: "#c00", fontWeight: 600 }}
+                >Cancel</span>
+              </div>
+            )}
+            <button className="toolbar-btn toolbar-btn-check" onClick={handleSave}>
+              {editingRule ? "Update Rule" : "Save Rule"}
+            </button>
+          </div>
         </div>
 
         {saveMsg && (
@@ -595,12 +710,14 @@ export default function RuleBuilder() {
           ) : rules.length === 0 ? (
             <p style={{ color: "#aaa" }}>No rules saved yet.</p>
           ) : (
-            <table style={{ borderCollapse: "collapse", width: "100%", maxWidth: "600px" }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", maxWidth: "900px" }}>
               <thead>
                 <tr style={{ background: "#f5f5f5" }}>
                   <th style={{ padding: "8px 12px", textAlign: "left", border: "1px solid #ddd" }}>Reagent</th>
                   <th style={{ padding: "8px 12px", textAlign: "left", border: "1px solid #ddd" }}>Name</th>
                   <th style={{ padding: "8px 12px", textAlign: "left", border: "1px solid #ddd" }}>Explanation</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left", border: "1px solid #ddd" }}>Type</th>
+                  <th style={{ padding: "8px 12px", border: "1px solid #ddd" }}></th>
                   <th style={{ padding: "8px 12px", border: "1px solid #ddd" }}></th>
                 </tr>
               </thead>
@@ -610,6 +727,15 @@ export default function RuleBuilder() {
                     <td style={{ padding: "8px 12px", border: "1px solid #ddd", fontFamily: "monospace" }}>{r.reagent}</td>
                     <td style={{ padding: "8px 12px", border: "1px solid #ddd" }}>{r.name}</td>
                     <td style={{ padding: "8px 12px", border: "1px solid #ddd", color: "#666", fontSize: "0.9rem" }}>{r.explanation || '—'}</td>
+                    <td style={{ padding: "8px 12px", border: "1px solid #ddd", color: "#666", fontSize: "0.9rem" }}>{r.reactionType || '—'}</td>
+                    <td style={{ padding: "8px 12px", border: "1px solid #ddd", textAlign: "center" }}>
+                      <button
+                        onClick={() => setViewRule(r)}
+                        style={{ background: "none", border: "1px solid #5f021f", color: "#5f021f", borderRadius: "4px", cursor: "pointer", padding: "2px 8px" }}
+                      >
+                        View
+                      </button>
+                    </td>
                     <td style={{ padding: "8px 12px", border: "1px solid #ddd", textAlign: "center" }}>
                       <button
                         onClick={() => handleDelete(r.id)}
@@ -625,6 +751,66 @@ export default function RuleBuilder() {
           )}
         </div>
       </div>
+
+      {/* View modal */}
+      {viewRule && (
+        <div
+          onClick={() => setViewRule(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 10, padding: "2rem", maxWidth: 720, width: "95%", boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 style={{ color: "#5f021f", margin: 0 }}>{viewRule.name}</h3>
+              <button onClick={() => setViewRule(null)} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "#666", lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "0.8rem", color: "#888", marginBottom: 4 }}>Reactant</div>
+                <MoleculeView atoms={viewRule.patternAtoms ?? []} bonds={viewRule.patternBonds ?? []} />
+              </div>
+
+              <div style={{ textAlign: "center", minWidth: 90 }}>
+                <div style={{ fontSize: "0.85rem", color: "#5f021f", fontWeight: 600, marginBottom: 4 }}>
+                  {viewRule.reagent}
+                </div>
+                <svg width="80" height="20" viewBox="0 0 80 20">
+                  <line x1="2" y1="10" x2="66" y2="10" stroke="#5f021f" strokeWidth="2.5" />
+                  <polygon points="66,5 80,10 66,15" fill="#5f021f" />
+                </svg>
+              </div>
+
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "0.8rem", color: "#888", marginBottom: 4 }}>Product</div>
+                <MoleculeView atoms={viewRule.resultAtoms ?? []} bonds={viewRule.resultBonds ?? []} />
+              </div>
+            </div>
+
+            {viewRule.reactionType && (
+              <div style={{ marginTop: "0.75rem", fontSize: "0.9rem", color: "#555" }}>
+                <strong>Type:</strong> {viewRule.reactionType}
+              </div>
+            )}
+            {viewRule.explanation && (
+              <div style={{ marginTop: "0.4rem", fontSize: "0.9rem", color: "#555" }}>
+                <strong>Note:</strong> {viewRule.explanation}
+              </div>
+            )}
+
+            <div style={{ marginTop: "1.25rem", textAlign: "right" }}>
+              <button
+                onClick={() => handleEdit(viewRule)}
+                style={{ background: "#5f021f", color: "#fff", border: "none", borderRadius: 6, padding: "8px 20px", cursor: "pointer", fontSize: "1rem" }}
+              >
+                Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@
  */
 
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { findMatches } from './subgraphMatch';
 
 const RULES_COLLECTION = 'reactionRules';
@@ -416,6 +416,10 @@ export async function loadRules() {
 
 export async function deleteRule(ruleId) {
   await deleteDoc(doc(db, RULES_COLLECTION, ruleId));
+}
+
+export async function updateRule(ruleId, ruleData) {
+  await updateDoc(doc(db, RULES_COLLECTION, ruleId), ruleData);
 }
 
 /**
