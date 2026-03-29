@@ -72,6 +72,16 @@ export default function ReactionExplorer() {
   const [productSteps, setProductSteps] = useState([]); // [{reagent, atoms, bonds, explanation, noMatch}]
   const [computing, setComputing] = useState(false);
   const [aiError, setAiError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);   // [{reagent, ruleName, noMatch, inputAtoms, inputBonds, mapping, rGroupCaptures, patternAtoms, delta}]
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [fbAtoms, setFbAtoms] = useState([]);
+  const [fbBonds, setFbBonds] = useState([]);
+  const [fbTool, setFbTool] = useState("pencil");
+  const [fbAtomType, setFbAtomType] = useState("C");
+  const [fbBondStyle, setFbBondStyle] = useState("solid");
+  const [fbDragFrom, setFbDragFrom] = useState(null);
+  const [fbDragTo, setFbDragTo] = useState(null);
 
   /* ---------- GRID ---------- */
   const gridPoints = useMemo(() => {
@@ -306,10 +316,13 @@ export default function ReactionExplorer() {
     setComputing(true);
     setAiError(null);
     setProductSteps([]);
+    setDebugInfo(null);
+    setShowFeedback(false);
 
     let currentAtoms = atoms;
     let currentBonds = bonds;
     const steps = [];
+    const debugSteps = [];
 
     for (const step of filledSteps) {
       const rule = await findRule(step);
@@ -319,13 +332,11 @@ export default function ReactionExplorer() {
         return;
       }
 
+      // Snapshot the input molecule for this step (for debug display)
+      const inputAtoms = currentAtoms;
+      const inputBonds = currentBonds;
+
       const result = applyRule(currentAtoms, currentBonds, rule);
-      console.log(`[ReactionExplorer] "${step}" →`, {
-        noMatch: result?.noMatch ?? false,
-        productAtoms: result?.products[0]?.atoms?.length,
-        productBonds: result?.products[0]?.bonds?.length,
-        atoms: result?.products[0]?.atoms,
-      });
       if (!result) {
         setAiError(`Could not apply rule for "${step}".`);
         setComputing(false);
@@ -341,12 +352,31 @@ export default function ReactionExplorer() {
         noMatch: result.noMatch || false,
       });
 
+      // Collect debug info for this step
+      debugSteps.push({
+        reagent: step,
+        ruleName: rule.name || rule.reagent,
+        noMatch: result.noMatch || false,
+        inputAtoms,
+        inputBonds,
+        mapping: result._debug?.mapping ?? new Map(),
+        rGroupCaptures: result._debug?.rGroupCaptures ?? new Map(),
+        patternAtoms: result._debug?.patternAtoms ?? [],
+        delta: {
+          removedAtoms: rule.delta?.removedAtomIds?.length ?? 0,
+          addedAtoms: rule.delta?.addedAtoms?.length ?? 0,
+          changedBonds: rule.delta?.changedBonds?.length ?? 0,
+          addedBonds: rule.delta?.addedBonds?.length ?? 0,
+        },
+      });
+
       // Feed this step's product into the next step
       currentAtoms = product.atoms;
       currentBonds = product.bonds;
     }
 
     setProductSteps(steps);
+    setDebugInfo(debugSteps);
     setComputing(false);
   };
 
@@ -654,6 +684,274 @@ export default function ReactionExplorer() {
             </div>
           </div>
         </div>
+
+        {/* Report Wrong Answer button */}
+        {(productSteps.length > 0 || aiError) && (
+          <div style={{ marginTop: "1rem" }}>
+            <button
+              onClick={() => {
+                setShowFeedback(v => {
+                  if (!v) { setFbAtoms([]); setFbBonds([]); setFeedbackText(""); }
+                  return !v;
+                });
+              }}
+              style={{ background: showFeedback ? "#5f021f" : "#f5e8eb", color: showFeedback ? "#fff" : "#5f021f", border: "1.5px solid #5f021f", borderRadius: "6px", padding: "7px 16px", fontSize: "0.9rem", cursor: "pointer", fontWeight: 600 }}
+            >
+              {showFeedback ? "✕ Close Report" : "📝 Report Wrong Answer"}
+            </button>
+          </div>
+        )}
+
+        {/* Report Wrong Answer panel */}
+        {showFeedback && (
+          <div style={{ marginTop: "0.75rem", border: "1.5px solid #5f021f", borderRadius: "10px", background: "#fff", padding: "1.25rem 1.5rem" }}>
+            <div style={{ fontWeight: 700, fontSize: "1.05rem", color: "#5f021f", marginBottom: "1rem" }}>
+              📝 Report Wrong Answer
+            </div>
+
+            {/* What the app did */}
+            <div style={{ marginBottom: "1.25rem" }}>
+              <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>
+                What the app produced:
+              </div>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+                {/* Step 0: original reactant */}
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "0.75rem", color: "#888", marginBottom: "3px" }}>Reactant</div>
+                  <SetCanvas atoms={atoms} bonds={bonds} width={200} height={200} />
+                </div>
+                {/* Each step arrow + product */}
+                {productSteps.map((step, si) => (
+                  <React.Fragment key={si}>
+                    <div style={{ textAlign: "center", fontSize: "0.82rem", color: "#5f021f", fontWeight: 600 }}>
+                      <div style={{ marginBottom: "4px" }}>{formatReagentDisplay(step.reagent)}</div>
+                      <svg width="50" height="16" viewBox="0 0 50 16">
+                        <line x1="2" y1="8" x2="38" y2="8" stroke="#5f021f" strokeWidth="2" />
+                        <polygon points="38,4 50,8 38,12" fill="#5f021f" />
+                      </svg>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "0.75rem", color: "#888", marginBottom: "3px" }}>
+                        {productSteps.length > 1 ? `Step ${si + 1}` : "Product"}
+                        {step.noMatch && <span style={{ color: "#b87700" }}> ⚠️</span>}
+                      </div>
+                      <SetCanvas atoms={step.atoms} bonds={step.bonds} width={200} height={200} />
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            {/* Draw correct product */}
+            <div style={{ marginBottom: "1.25rem" }}>
+              <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>
+                Draw what the correct product should be:
+              </div>
+              {/* Feedback canvas toolbar */}
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "6px", alignItems: "center" }}>
+                <button className={`toolbar-btn${fbTool === "pencil" ? " toolbar-btn-active" : ""}`} onClick={() => setFbTool("pencil")}>Pencil</button>
+                <button className={`toolbar-btn${fbTool === "eraser" ? " toolbar-btn-active" : ""}`} onClick={() => setFbTool("eraser")}>Eraser</button>
+                <button className="toolbar-btn" onClick={() => { setFbAtoms([]); setFbBonds([]); }}>Clear</button>
+                <select className="toolbar-select" value={fbAtomType} onChange={e => setFbAtomType(e.target.value)}>
+                  <option value="C">C</option>
+                  <option value="H">H</option>
+                  <option value="O">O</option>
+                  <option value="N">N</option>
+                  <option value="Br">Br</option>
+                  <option value="Cl">Cl</option>
+                  <option value="F">F</option>
+                  <option value="I">I</option>
+                  <option value="OH">OH</option>
+                  <option value="R">R</option>
+                </select>
+                <select className="toolbar-select" value={fbBondStyle} onChange={e => setFbBondStyle(e.target.value)}>
+                  <option value="solid">Solid</option>
+                  <option value="wedge">Wedge</option>
+                  <option value="striped">Dashed</option>
+                </select>
+              </div>
+              {/* Feedback canvas SVG */}
+              <svg
+                width={480} height={480}
+                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                style={{ display: "block", border: "1.5px solid #ccc", borderRadius: 6, background: "#fff", cursor: fbTool === "eraser" ? "not-allowed" : "crosshair", maxWidth: "100%" }}
+                onMouseDown={e => {
+                  if (fbTool === "eraser") return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const { snap } = snapNearest(e.clientX - rect.left, e.clientY - rect.top);
+                  if (!snap) return;
+                  const existing = fbAtoms.find(a => a.x === snap.x && a.y === snap.y);
+                  setFbDragFrom({ x: snap.x, y: snap.y, atomId: existing?.id ?? null });
+                  setFbDragTo(snap);
+                }}
+                onMouseMove={e => {
+                  if (!fbDragFrom) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const { snap } = snapNearest(e.clientX - rect.left, e.clientY - rect.top);
+                  if (snap) setFbDragTo(snap);
+                }}
+                onMouseUp={e => {
+                  if (!fbDragFrom) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const { snap } = snapNearest(e.clientX - rect.left, e.clientY - rect.top);
+                  const end = snap ?? fbDragTo;
+                  const wasDrag = end && Math.hypot(end.x - fbDragFrom.x, end.y - fbDragFrom.y) > SNAP_RADIUS;
+                  if (!wasDrag) {
+                    // Click on grid point: add atom if nothing there, or erase
+                    if (fbTool === "eraser") {
+                      const hit = fbAtoms.find(a => a.x === fbDragFrom.x && a.y === fbDragFrom.y);
+                      if (hit) { setFbAtoms(prev => prev.filter(a => a.id !== hit.id)); setFbBonds(prev => prev.filter(b => b.from !== hit.id && b.to !== hit.id)); }
+                    } else {
+                      const hit = fbAtoms.find(a => a.x === fbDragFrom.x && a.y === fbDragFrom.y);
+                      if (!hit) setFbAtoms(prev => [...prev, { id: Date.now(), x: fbDragFrom.x, y: fbDragFrom.y, label: fbAtomType }]);
+                    }
+                  } else if (end) {
+                    // Drag: create bond between grid points
+                    let newA = [...fbAtoms];
+                    let startId = fbDragFrom.atomId;
+                    if (!startId) { startId = Date.now(); newA = [...newA, { id: startId, x: fbDragFrom.x, y: fbDragFrom.y, label: fbAtomType }]; }
+                    const endAtom = newA.find(a => a.x === end.x && a.y === end.y);
+                    let endId;
+                    if (endAtom) { endId = endAtom.id; }
+                    else { endId = Date.now() + 1; newA = [...newA, { id: endId, x: end.x, y: end.y, label: fbAtomType }]; }
+                    if (startId !== endId && !fbBonds.some(b => (b.from === startId && b.to === endId) || (b.from === endId && b.to === startId))) {
+                      setFbAtoms(newA);
+                      setFbBonds(prev => [...prev, { id: Date.now() + 2, from: startId, to: endId, order: 1, style: fbBondStyle }]);
+                    } else {
+                      setFbAtoms(newA);
+                    }
+                  }
+                  setFbDragFrom(null); setFbDragTo(null);
+                }}
+                onMouseLeave={() => { setFbDragFrom(null); setFbDragTo(null); }}
+              >
+                {/* Triangular grid dots — same as main canvas */}
+                {gridPoints.map((p, i) => (
+                  <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#ccc" />
+                ))}
+
+                {fbBonds.map(bond => {
+                  const a1 = fbAtoms.find(a => a.id === bond.from);
+                  const a2 = fbAtoms.find(a => a.id === bond.to);
+                  if (!a1 || !a2) return null;
+                  if (bond.style === "wedge") {
+                    const angle = Math.atan2(a2.y - a1.y, a2.x - a1.x);
+                    const perp = angle + Math.PI / 2;
+                    return (
+                      <polygon key={bond.id}
+                        points={`${a1.x},${a1.y} ${a2.x + Math.cos(perp) * 6},${a2.y + Math.sin(perp) * 6} ${a2.x - Math.cos(perp) * 6},${a2.y - Math.sin(perp) * 6}`}
+                        fill="#000"
+                        onClick={() => setFbBonds(prev => prev.map(b => b.id === bond.id ? { ...b, order: b.order === 3 ? 1 : b.order + 1 } : b))}
+                      />
+                    );
+                  }
+                  const ddx = a2.y - a1.y, ddy = a2.x - a1.x;
+                  const len = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+                  const ox = (ddx / len) * 4, oy = (ddy / len) * 4;
+                  return (
+                    <g key={bond.id} onClick={() => setFbBonds(prev => prev.map(b => b.id === bond.id ? { ...b, order: b.order === 3 ? 1 : b.order + 1 } : b))}>
+                      <line x1={a1.x} y1={a1.y} x2={a2.x} y2={a2.y} stroke="transparent" strokeWidth="14" />
+                      {Array.from({ length: bond.order }).map((_, i) => (
+                        <line key={i} x1={a1.x + ox * i} y1={a1.y - oy * i} x2={a2.x + ox * i} y2={a2.y - oy * i}
+                          stroke="#000" strokeWidth="3" strokeDasharray={bond.style === "striped" ? "6,4" : "0"} pointerEvents="none" />
+                      ))}
+                    </g>
+                  );
+                })}
+
+                {fbAtoms.map(atom => {
+                  const isC = !atom.label || atom.label === "C";
+                  const r = atomRadius(atom.label);
+                  return (
+                    <g key={atom.id}>
+                      <circle cx={atom.x} cy={atom.y} r={r} fill="transparent"
+                        onClick={() => {
+                          if (fbTool === "eraser") {
+                            setFbAtoms(prev => prev.filter(a => a.id !== atom.id));
+                            setFbBonds(prev => prev.filter(b => b.from !== atom.id && b.to !== atom.id));
+                          }
+                        }}
+                      />
+                      {(!isC) && <circle cx={atom.x} cy={atom.y} r={r} fill="#5f021f" />}
+                      {(!isC) && <text x={atom.x} y={atom.y + 4} textAnchor="middle" fontSize="12" fill="#fff" pointerEvents="none">{atom.label}</text>}
+                    </g>
+                  );
+                })}
+
+                {/* Drag preview line */}
+                {fbDragFrom && fbDragTo && Math.hypot(fbDragTo.x - fbDragFrom.x, fbDragTo.y - fbDragFrom.y) > SNAP_RADIUS && (
+                  <line x1={fbDragFrom.x} y1={fbDragFrom.y} x2={fbDragTo.x} y2={fbDragTo.y} stroke="#999" strokeWidth="2" strokeDasharray="5,3" pointerEvents="none" />
+                )}
+              </svg>
+              <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "4px" }}>
+                Click a grid point to place an atom · Drag between grid points to draw bonds · Click a bond to cycle order (single→double→triple) · Eraser tool to delete
+              </div>
+            </div>
+
+            {/* Describe what's wrong */}
+            <div style={{ marginBottom: "1rem" }}>
+              <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>
+                Describe what went wrong:
+              </div>
+              <textarea
+                value={feedbackText}
+                onChange={e => setFeedbackText(e.target.value)}
+                placeholder='e.g. "Br ended up on the wrong carbon" or "the double bond disappeared"'
+                rows={3}
+                style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #ccc", borderRadius: "6px", fontSize: "0.95rem", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
+              />
+            </div>
+
+            {/* Copy report button */}
+            <button
+              onClick={() => {
+                const reagents = reagentSteps.filter(s => s.trim()).join(", ");
+                const techLines = (debugInfo || []).map((step, si) => {
+                  const mapping = [...step.mapping.entries()].map(([pid, mid]) => {
+                    const pa = step.patternAtoms.find(a => a.id === pid);
+                    const ma = step.inputAtoms.find(a => a.id === mid);
+                    const rCap = step.rGroupCaptures.get(pid);
+                    return `    ${pa?.label || 'C'} → ${ma?.label || 'C'}${rCap ? ` (+${rCap.size - 1} R-group atoms)` : ''}`;
+                  }).join('\n');
+                  const rGroups = [...step.rGroupCaptures.entries()].map(([pid, ids], ri) => {
+                    const labels = [...ids].map(id => step.inputAtoms.find(a => a.id === id)?.label || 'C');
+                    return `    R[${ri}]: ${ids.size} atoms [${labels.join(', ')}]`;
+                  }).join('\n');
+                  return [
+                    `Step ${si + 1} (${step.reagent}) — Rule: "${step.ruleName}"${step.noMatch ? ' ⚠️ PATTERN NOT FOUND' : ''}`,
+                    `  Mapping:\n${mapping || '    (none)'}`,
+                    rGroups ? `  R groups:\n${rGroups}` : null,
+                    `  Delta: removed ${step.delta.removedAtoms} atoms · added ${step.delta.addedAtoms} atoms · changed ${step.delta.changedBonds} bonds · added ${step.delta.addedBonds} bonds`,
+                  ].filter(Boolean).join('\n');
+                }).join('\n\n');
+
+                const finalProduct = productSteps[productSteps.length - 1];
+                const report = [
+                  "=== Wrong Answer Report ===",
+                  `Reagent(s): ${reagents}`,
+                  `What went wrong: ${feedbackText || "(not described)"}`,
+                  "",
+                  "--- App's answer ---",
+                  `Reactant: ${atoms.length} atoms, ${bonds.length} bonds`,
+                  finalProduct ? `Product: ${finalProduct.atoms?.length ?? 0} atoms, ${finalProduct.bonds?.length ?? 0} bonds` : "(no product computed)",
+                  fbAtoms.length > 0 ? `Correct product drawn: ${fbAtoms.length} atoms, ${fbBonds.length} bonds` : "Correct product: (not drawn)",
+                  "",
+                  "--- Technical details (for diagnosis) ---",
+                  techLines || "(no debug info available)",
+                ].join('\n');
+
+                navigator.clipboard.writeText(report).then(() => alert("Report copied to clipboard! Paste it in the chat."));
+              }}
+              style={{ background: "#1a7a3a", color: "#fff", border: "none", borderRadius: "6px", padding: "9px 20px", fontSize: "0.95rem", fontWeight: 700, cursor: "pointer" }}
+            >
+              📋 Copy Report to Clipboard
+            </button>
+            <span style={{ marginLeft: "10px", fontSize: "0.82rem", color: "#888" }}>
+              Then paste it in the chat with Claude to get help diagnosing the issue.
+            </span>
+          </div>
+        )}
+
       </div>
     </div>
   );

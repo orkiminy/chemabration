@@ -200,31 +200,60 @@ function computeDelta(patternAtoms, patternBonds, resultAtoms, resultBonds) {
  *
  * Returns { atoms, bonds } — the full transformed molecule.
  */
-function applyDelta(molAtoms, molBonds, delta, match, rGroupCaptures, addedAtomPositions = new Map()) {
+function applyDelta(molAtoms, molBonds, delta, match, rGroupCaptures, addedAtomPositions = new Map(), posReplacementPairs = new Map()) {
   let newAtoms = molAtoms.map(a => ({ ...a }));
   let newBonds = molBonds.map(b => ({ ...b }));
   let idCounter = Date.now();
 
-  // Pre-scan: find R-removal/replacement pairs.
-  // When R has different IDs in pattern vs result (rule built without Copy Left→Right),
-  // the delta shows R as "removed + new R added". Instead, we treat this as KEEP:
-  // skip both the removal and the addition, and remap the replacement R's ID to the
-  // original matched mol atom. This preserves the real atom (and its whole group)
-  // with its original label, and any bonds from the "result R" attach to it normally.
-  // Key: addedAtom.id of the replacement R → molAtomId to use in its place
-  const rSkip = new Map(); // replacementR.id → originalMolId
+  // Pre-scan: find atoms whose removal should be skipped ("rSkip").
+  //
+  // Case 1 — R wildcards: when R has different IDs on left vs right canvas
+  // (rule built without Copy Left→Right), the delta shows R as "removed + new R added".
+  // We keep the original matched atom (and its whole captured group) and remap the
+  // replacement R's bonds to it.
+  //
+  // Case 2 — Position-matched atoms: when ANY pattern atom was drawn at the same canvas
+  // position as a result atom (same-label, same grid point), treat it as "kept" too.
+  // This means rules don't need Copy Left→Right to preserve outside connections —
+  // any atom drawn at the same position on both canvases automatically stays in the
+  // molecule with all its external bonds intact.
+  //
+  // Key: addedAtom.id of the replacement → molAtomId to use in its place
+  const rSkip = new Map(); // replacementAtom.id → originalMolId
   const rSkipPids = new Set(); // pattern atom IDs whose removal should be skipped
+  const coreIds = new Set(match.values());
+
   delta.removedAtomIds.forEach(pid => {
     const mid = match.get(pid);
     if (mid === undefined) return;
+
+    // Case 1: R wildcard with captured group
     const groupIds = rGroupCaptures?.get(pid);
-    if (!groupIds) return; // only applies to R wildcards (which have captures)
-    const replacementR = delta.addedAtoms.find(
-      a => (a.label || 'C').trim() === 'R' && !rSkip.has(a.id)
+    if (groupIds) {
+      const replacementR = delta.addedAtoms.find(
+        a => (a.label || 'C').trim() === 'R' && !rSkip.has(a.id)
+      );
+      if (replacementR) {
+        rSkip.set(replacementR.id, mid);
+        rSkipPids.add(pid);
+        return;
+      }
+    }
+
+    // Case 2: position-matched atom that has bonds to atoms outside the pattern.
+    // Only activate when the mol atom actually connects to something outside the
+    // matched subgraph — otherwise the normal remove+add path is fine.
+    const hasExternalBonds = newBonds.some(b =>
+      (b.from === mid && !coreIds.has(b.to)) ||
+      (b.to   === mid && !coreIds.has(b.from))
     );
-    if (!replacementR) return;
-    rSkip.set(replacementR.id, mid);
-    rSkipPids.add(pid);
+    if (hasExternalBonds && posReplacementPairs.has(pid)) {
+      const repId = posReplacementPairs.get(pid);
+      if (!rSkip.has(repId)) {
+        rSkip.set(repId, mid);
+        rSkipPids.add(pid);
+      }
+    }
   });
 
   // 1. Remove atoms (and all their bonds).
@@ -304,6 +333,12 @@ function applyDelta(molAtoms, molBonds, delta, match, rGroupCaptures, addedAtomP
     const fromId = match.get(bond.from) ?? idRemap.get(bond.from);
     const toId   = match.get(bond.to)   ?? idRemap.get(bond.to);
     if (fromId !== undefined && toId !== undefined) {
+      // Remove any pre-existing bond between these endpoints before adding the new one.
+      // Without this, the rSkip path leaves the original attachment bond in newBonds AND
+      // adds a duplicate here (addedBonds still contains the core→R_new bond).
+      newBonds = newBonds.filter(b =>
+        !((b.from === fromId && b.to === toId) || (b.from === toId && b.to === fromId))
+      );
       newBonds.push({ id: idCounter++, from: fromId, to: toId, order: bond.order || 1, style: bond.style || 'solid' });
     }
   });
@@ -376,6 +411,7 @@ export function applyRule(molAtoms, molBonds, rule) {
       }],
       explanation: rule.explanation || '',
       noMatch: true,
+      _debug: null,
     };
   }
 
@@ -395,10 +431,39 @@ export function applyRule(molAtoms, molBonds, rule) {
     }
   });
 
-  const { atoms, bonds } = applyDelta(molAtoms, molBonds, delta, mapping, rGroupCaptures, addedAtomPositions);
+  // Build position-based replacement pairs: for each removed pattern atom, find an
+  // added result atom at the same canvas position with the same label. These are atoms
+  // the rule-builder drew at the same spot on both canvases without using Copy Left→Right.
+  // When such an atom has external connections in the molecule, we treat it as "kept"
+  // (Case 2 in applyDelta) so its outside bonds are never severed.
+  const POSITION_THRESHOLD = 3; // px — same grid point = distance 0, so 3 is generous
+  const posReplacementPairs = new Map(); // patternAtomId → addedAtom.id
+  const usedResultIds = new Set();
+  (rule.delta.removedAtomIds || []).forEach(pid => {
+    const pa = rule.patternAtoms.find(a => a.id === pid);
+    if (!pa) return;
+    const patLabel = (pa.label || 'C').trim();
+    const rep = (rule.delta.addedAtoms || []).find(ra => {
+      if (usedResultIds.has(ra.id)) return false;
+      if ((ra.label || 'C').trim() !== patLabel) return false;
+      return Math.hypot(ra.x - pa.x, ra.y - pa.y) < POSITION_THRESHOLD;
+    });
+    if (rep) {
+      posReplacementPairs.set(pid, rep.id);
+      usedResultIds.add(rep.id);
+    }
+  });
+
+  const { atoms, bonds } = applyDelta(molAtoms, molBonds, delta, mapping, rGroupCaptures, addedAtomPositions, posReplacementPairs);
   return {
     products: [{ atoms, bonds }],
     explanation: rule.explanation || '',
+    noMatch: false,
+    _debug: {
+      mapping,
+      rGroupCaptures,
+      patternAtoms: rule.patternAtoms,
+    },
   };
 }
 
