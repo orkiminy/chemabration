@@ -410,6 +410,8 @@ function CanvasEditor({ atoms, setAtoms, bonds, setBonds, label }) {
               <option value="CH3">CH3</option>
               <option value="Mg">Mg</option>
               <option value="X">X (any halogen)</option>
+              <option value="S">S</option>
+              <option value="Na">Na</option>
               <option value="R">R (any group)</option>
             </select>
             <select className="toolbar-select" value={bondStyle} onChange={(e) => setBondStyle(e.target.value)}>
@@ -504,7 +506,7 @@ export default function RuleBuilder() {
             <CanvasEditor
               atoms={leftAtoms} setAtoms={setLeftAtoms}
               bonds={leftBonds} setBonds={setLeftBonds}
-              label="Reactant (Left)"
+              label="Reactant"
             />
           </div>
 
@@ -545,7 +547,7 @@ export default function RuleBuilder() {
             <CanvasEditor
               atoms={rightAtoms} setAtoms={setRightAtoms}
               bonds={rightBonds} setBonds={setRightBonds}
-              label="Product (Right)"
+              label="Product"
             />
           </div>
         </div>

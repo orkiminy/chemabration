@@ -22,7 +22,7 @@ function Header() {
 
           <ul className="nav-list d-flex">
             <li className="nav-item">
-              <a href="#about" className="nav-link">About</a>
+              <Link to="/about" className="nav-link">About</Link>
             </li>
           </ul>
 
@@ -50,13 +50,20 @@ function Header() {
             <li className="icons d-flex">
               <div className="group-icon">
                 <div className="icon">
-                  <i className="bx bxl-instagram"></i>
+                  <a href="https://instagram.com/chemebration_" target="_blank" rel="noreferrer">
+                    <i className="bx bxl-instagram"></i>
+                  </a>
                 </div>
                 <div className="icon">
                   <i className="bx bxl-tiktok"></i>
                 </div>
                 <div className="icon">
                   <i className="bx bxl-facebook"></i>
+                </div>
+                <div className="icon">
+                  <a href="mailto:Chemebration@gmail.com">
+                    <i className="bx bx-envelope"></i>
+                  </a>
                 </div>
               </div>
             </li>

@@ -489,7 +489,7 @@ const { user } = useAuth();
         {/* Given structure */}
         <div className="exercise-panel">
           <div className="exercise-panel-box">
-            <div className="exercise-panel-label">Given Structure</div>
+            <div className="exercise-panel-label">Reactant</div>
             <SetCanvas atoms={currentLevel.question.atoms} bonds={currentLevel.question.bonds} />
           </div>
         </div>
@@ -537,7 +537,7 @@ const { user } = useAuth();
         {/* Right: Editable canvas */}
         <div className="exercise-panel">
           <div className="exercise-panel-box">
-            <div className="exercise-panel-label">Your Answer</div>
+            <div className="exercise-panel-label">Product</div>
             <svg
               width={WIDTH}
               height={HEIGHT}
