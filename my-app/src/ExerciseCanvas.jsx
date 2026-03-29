@@ -610,30 +610,44 @@ const { user } = useAuth();
               })}
 
               {/* ATOMS */}
-              {atoms.map(atom => (
-                <g key={atom.id}>
-                  <circle
-                    cx={atom.x}
-                    cy={atom.y}
-                    r={atomRadius(atom.label)}
-                    fill={atom.id === selectedAtom ? "red" : "#5f021f"}
-                    onMouseDown={(e) => handleAtomMouseDown(e, atom.id)}
-                    onClick={(e) => handleAtomClick(e, atom.id)}
-                  />
-                  {atom.label && atom.label !== "C" && (
-                    <text
-                      x={atom.x}
-                      y={atom.y + 4}
-                      textAnchor="middle"
-                      fontSize="12"
-                      fill="#fff"
-                      pointerEvents="none"
-                    >
-                      {atom.label}
-                    </text>
-                  )}
-                </g>
-              ))}
+              {atoms.map(atom => {
+                const isC = !atom.label || atom.label === "C";
+                return (
+                  <g key={atom.id}>
+                    {/* Invisible hit target — always present so C atoms can be clicked/erased */}
+                    <circle
+                      cx={atom.x}
+                      cy={atom.y}
+                      r={atomRadius(atom.label)}
+                      fill="transparent"
+                      onMouseDown={(e) => handleAtomMouseDown(e, atom.id)}
+                      onClick={(e) => handleAtomClick(e, atom.id)}
+                    />
+                    {/* Visible circle — non-carbon only, OR any atom when selected */}
+                    {(!isC || atom.id === selectedAtom) && (
+                      <circle
+                        cx={atom.x}
+                        cy={atom.y}
+                        r={atomRadius(atom.label)}
+                        fill={atom.id === selectedAtom ? "red" : "#5f021f"}
+                        pointerEvents="none"
+                      />
+                    )}
+                    {!isC && (
+                      <text
+                        x={atom.x}
+                        y={atom.y + 4}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fill="#fff"
+                        pointerEvents="none"
+                      >
+                        {atom.label}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
 
               {/* Drag preview line */}
               {dragFrom && dragTo && (Math.hypot(dragTo.x - dragFrom.x, dragTo.y - dragFrom.y) > SNAP_RADIUS) && (

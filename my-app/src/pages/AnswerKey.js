@@ -129,15 +129,19 @@ function MoleculeCanvas({ atoms, bonds, label, snapToGrid = true }) {
         })}
 
         {/* Atoms */}
-        {centered.map(atom => (
+        {centered.map(atom => {
+          const isC = !atom.label || atom.label === "C";
+          return (
           <g key={atom.id}>
-            <circle
-              cx={atom.x}
-              cy={atom.y}
-              r={atom.label && atom.label.length > 1 ? 18 : ATOM_RADIUS}
-              fill="#5f021f"
-            />
-            {atom.label && atom.label !== "C" && (
+            {!isC && (
+              <circle
+                cx={atom.x}
+                cy={atom.y}
+                r={atom.label && atom.label.length > 1 ? 18 : ATOM_RADIUS}
+                fill="#5f021f"
+              />
+            )}
+            {!isC && (
               <text
                 x={atom.x}
                 y={atom.y + 4}
@@ -150,7 +154,8 @@ function MoleculeCanvas({ atoms, bonds, label, snapToGrid = true }) {
               </text>
             )}
           </g>
-        ))}
+          );
+        })}
       </svg>
     </div>
   );

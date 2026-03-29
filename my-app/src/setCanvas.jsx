@@ -102,27 +102,32 @@ export default function SetCanvas({ atoms = [], bonds = [] }) {
         })}
 
         {/* ATOMS */}
-        {centeredAtoms.map(atom => (
-          <g key={atom.id}>
-            <circle
-              cx={atom.x}
-              cy={atom.y}
-              r={ATOM_RADIUS}
-              fill="#5f021f"
-            />
-            {atom.label && atom.label !== 'C' && (
-            <text
-              x={atom.x}
-              y={atom.y + 4}
-              textAnchor="middle"
-              fontSize="12"
-              fill="#fff"
-            >
-              {atom.label}
-            </text>
-          )}
-          </g>
-        ))}
+        {centeredAtoms.map(atom => {
+          const isC = !atom.label || atom.label === 'C';
+          return (
+            <g key={atom.id}>
+              {!isC && (
+                <circle
+                  cx={atom.x}
+                  cy={atom.y}
+                  r={ATOM_RADIUS}
+                  fill="#5f021f"
+                />
+              )}
+              {!isC && (
+                <text
+                  x={atom.x}
+                  y={atom.y + 4}
+                  textAnchor="middle"
+                  fontSize="12"
+                  fill="#fff"
+                >
+                  {atom.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
