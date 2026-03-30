@@ -336,6 +336,11 @@ function applyDelta(molAtoms, molBonds, delta, match, rGroupCaptures, addedAtomP
     }
   });
 
+  // Snapshot which atoms had bonds BEFORE the removal step, so we can distinguish
+  // atoms that were already disconnected from atoms that became orphaned by the delta.
+  const bondedBefore = new Set();
+  newBonds.forEach(b => { bondedBefore.add(b.from); bondedBefore.add(b.to); });
+
   // 1. Remove atoms (and all their bonds).
   // If the removed atom was an R wildcard, remove the entire captured R group —
   // UNLESS it pairs with a replacement R (rSkipPids), in which case we keep
@@ -350,21 +355,21 @@ function applyDelta(molAtoms, molBonds, delta, match, rGroupCaptures, addedAtomP
     newBonds = newBonds.filter(b => !groupIds.has(b.from) && !groupIds.has(b.to));
   });
 
-  // 1b. Prune newly-disconnected fragments.
+  // 1b. Prune newly-orphaned atoms.
   // Removing a middle-chain atom (e.g. the alpha-CH2 of ethylbenzene) severs the
-  // bond to the rest of the chain, leaving those atoms with no path back to the ring.
-  // Strip any atom that has become fully disconnected (zero remaining bonds) — but
-  // only atoms that were NOT part of the core pattern match, so we never accidentally
-  // drop a ring atom that legitimately has degree 0 in the pattern.
+  // bond to the rest of the chain, leaving downstream atoms with zero bonds.
+  // Only prune atoms that WERE bonded before the removal but now have zero bonds —
+  // atoms that were already disconnected (e.g. user-placed free atoms) are left alone.
   {
     const coreMatchIds = new Set(match.values());
     const stillBonded = new Set();
     newBonds.forEach(b => { stillBonded.add(b.from); stillBonded.add(b.to); });
-    const orphans = newAtoms.filter(a => !stillBonded.has(a.id) && !coreMatchIds.has(a.id));
+    const orphans = newAtoms.filter(a =>
+      !stillBonded.has(a.id) && !coreMatchIds.has(a.id) && bondedBefore.has(a.id)
+    );
     if (orphans.length > 0) {
       const orphanIds = new Set(orphans.map(a => a.id));
       newAtoms = newAtoms.filter(a => !orphanIds.has(a.id));
-      // bonds were already removed when their connecting atom was removed above
     }
   }
 
@@ -491,21 +496,6 @@ export function applyRule(molAtoms, molBonds, rule) {
     };
   }
 
-  // Strip disconnected (stray) atoms — atoms with zero bonds.
-  // A stray atom in the reactant is never part of any reactive site; it would carry
-  // through all delta applications unchanged and inflate the product atom count,
-  // causing wrong-answer false positives.  Removing them here is safe because they
-  // have no bonds to preserve.
-  const connectedIds = new Set();
-  molBonds.forEach(b => { connectedIds.add(b.from); connectedIds.add(b.to); });
-  // An isolated single atom (the whole molecule) should not be stripped.
-  if (connectedIds.size > 0) {
-    const strays = molAtoms.filter(a => !connectedIds.has(a.id));
-    if (strays.length > 0) {
-      molAtoms = molAtoms.filter(a => connectedIds.has(a.id));
-    }
-  }
-
   // Resolve X labels in the pattern so matching works for HBr → Br, etc.
   const patternAtoms = rule.patternAtoms.map(a => ({ ...a, label: resolveLabel(a.label || 'C') }));
 
@@ -595,6 +585,11 @@ export function applyRule(molAtoms, molBonds, rule) {
   const uniqueMatches = [...bestPerKey.values()].map(v => v.match);
 
   // posReplacementPairs is rule-derived — precompute once, reuse for all matches.
+  // Only pair a removed pattern atom with an added result atom when they have the
+  // same label, same canvas position, AND same degree (number of bonds).  The degree
+  // check prevents a methyl C (degree 1) from pairing with a carboxyl C (degree 3)
+  // in rules like KMnO4 oxidation — the methyl must be genuinely removed so chain
+  // atoms downstream of it get orphan-pruned.
   const POSITION_THRESHOLD = 3;
   const posReplacementPairs = new Map();
   const usedResultIds = new Set();
@@ -602,10 +597,15 @@ export function applyRule(molAtoms, molBonds, rule) {
     const pa = rule.patternAtoms.find(a => a.id === pid);
     if (!pa) return;
     const patLabel = (pa.label || 'C').trim();
+    const patDegree = rule.patternBonds.filter(b => b.from === pid || b.to === pid).length;
     const rep = (rule.delta.addedAtoms || []).find(ra => {
       if (usedResultIds.has(ra.id)) return false;
       if ((ra.label || 'C').trim() !== patLabel) return false;
-      return Math.hypot(ra.x - pa.x, ra.y - pa.y) < POSITION_THRESHOLD;
+      if (Math.hypot(ra.x - pa.x, ra.y - pa.y) >= POSITION_THRESHOLD) return false;
+      // Degree check: a "kept-in-place" atom retains its bond count.
+      // A chemically different replacement (e.g. CH3 → COOH) has a different degree.
+      const resDegree = (rule.resultBonds || []).filter(b => b.from === ra.id || b.to === ra.id).length;
+      return resDegree === patDegree;
     });
     if (rep) {
       posReplacementPairs.set(pid, rep.id);
@@ -618,6 +618,8 @@ export function applyRule(molAtoms, molBonds, rule) {
   let currentAtoms = molAtoms;
   let currentBonds = molBonds;
 
+  console.log(`[applyRule] matches: total=${matches.length}, unique=${uniqueMatches.length}, posReplacementPairs:`, [...posReplacementPairs.entries()]);
+
   for (const { mapping, rGroupCaptures } of uniqueMatches) {
     const xform = computePatternToMolTransform(patternAtoms, molAtoms, mapping);
     const addedAtomPositions = new Map();
@@ -628,11 +630,14 @@ export function applyRule(molAtoms, molBonds, rule) {
       }
     });
 
+    const before = currentAtoms.length;
     const result = applyDelta(currentAtoms, currentBonds, delta, mapping, rGroupCaptures, addedAtomPositions, posReplacementPairs);
     currentAtoms = result.atoms;
     currentBonds = result.bonds;
+    console.log(`[applyRule] match applied: ${before} → ${currentAtoms.length} atoms`);
   }
 
+  console.log(`[applyRule] OUTPUT: ${currentAtoms.length} atoms, ${currentBonds.length} bonds`);
   return {
     products: [{ atoms: currentAtoms, bonds: currentBonds }],
     explanation: rule.explanation || '',
