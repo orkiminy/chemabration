@@ -159,8 +159,8 @@ function findAromaticRings(atoms, bonds) {
 
   const adj = new Map(atoms.map(a => [a.id, []]));
   bonds.forEach(b => {
-    adj.get(b.from)?.push({ neighbor: b.to,  order: b.order || 1 });
-    adj.get(b.to)  ?.push({ neighbor: b.from, order: b.order || 1 });
+    adj.get(b.from)?.push({ neighbor: b.to, order: b.order || 1 });
+    adj.get(b.to)?.push({ neighbor: b.from, order: b.order || 1 });
   });
 
   const rings = [];
