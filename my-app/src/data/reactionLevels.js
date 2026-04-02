@@ -6,6 +6,7 @@ export const reactionLevels = [
   // If H adds Bottom (Dash) -> Methyl pushed Top (Wedge)
   {
     id: 1,
+    chapter: "Alkenes",
     title: "Catalytic Hydrogenation",
     reagents: "H₂ / Pt",
     description: "Syn Addition of Hydrogen",
@@ -32,6 +33,7 @@ export const reactionLevels = [
   // Methyl Stereochem: Opposite to Br(C2).
   {
     id: 2,
+    chapter: "Alkenes",
     title: "Halogenation",
     reagents: "Br₂ / CCl₄",
     description: "Anti Addition of Bromine",
@@ -66,6 +68,7 @@ export const reactionLevels = [
   // Methyl opposite to OH.
   {
     id: 3,
+    chapter: "Alkenes",
     title: "Oxyhalogenation",
     reagents: "Br₂ / H₂O",
     description: "Anti Addition (OH to more sub, Br to less sub)",
@@ -100,6 +103,7 @@ export const reactionLevels = [
   // Methyl opposite to OCH3.
   {
     id: 4,
+    chapter: "Alkenes",
     title: "Alkoxyhalogenation",
     reagents: "Br₂ / CH₃OH",
     description: "Anti Addition (OCH₃ to more sub, Br to less sub)",
@@ -134,6 +138,7 @@ export const reactionLevels = [
   // Mixture of enantiomers. Br opposite to Methyl.
   {
     id: 5,
+    chapter: "Alkenes",
     title: "Hydrohalogenation",
     reagents: "HBr",
     description: "Markovnikov Addition (H to less sub, Br to more sub)",
@@ -167,6 +172,7 @@ export const reactionLevels = [
   // Mixture. OH opposite to Methyl.
   {
     id: 6,
+    chapter: "Alkenes",
     title: "Catalytic Hydration",
     reagents: "H₂O / H⁺",
     description: "Markovnikov Addition of Water (Alcohol product)",
@@ -204,6 +210,7 @@ export const reactionLevels = [
   // Markovnikov. OCH3 to More Sub. Methyl opposite to OCH3.
   {
     id: 7,
+    chapter: "Alkenes",
     title: "Addition of Alcohols",
     reagents: "CH₃OH / H⁺",
     description: "Markovnikov Addition (Ether product)",
@@ -243,6 +250,7 @@ export const reactionLevels = [
   // Methyl opposite to OH.
   {
     id: 8,
+    chapter: "Alkenes",
     title: "Oxymercuration-Reduction",
     reagents: "1. Hg(OAc)₂, H₂O / 2. NaBH₄",
     description: "Markovnikov Addition of OH (Anti-Addition)",
@@ -267,6 +275,7 @@ export const reactionLevels = [
   // Anti addition. OCH3 on More Sub. H on Less Sub.
   {
     id: 9,
+    chapter: "Alkenes",
     title: "Alkoxymercuration-Reduction",
     reagents: "1. Hg(OAc)₂, CH₃OH / 2. NaBH₄",
     description: "Markovnikov Addition of OCH3 (Anti-Addition)",
@@ -310,6 +319,7 @@ export const reactionLevels = [
   // Methyl opposite to H (on C2).
   {
     id: 10,
+    chapter: "Alkenes",
     title: "Hydroboration-Oxidation",
     reagents: "1. BH₃·THF / 2. H₂O₂, OH⁻",
     description: "Anti-Markovnikov, Syn Addition",
@@ -343,6 +353,7 @@ export const reactionLevels = [
   // Syn Addition. Oxygen adds to one face. Methyl pushed to opposite face.
   {
     id: 11,
+    chapter: "Alkenes",
     title: "Epoxidation",
     reagents: "mCPBA",
     description: "Syn Addition of Oxygen (Epoxide)",
@@ -377,6 +388,7 @@ export const reactionLevels = [
   // Syn Addition. Methyl pushed opposite to OH.
   {
     id: 13,
+    chapter: "Alkenes",
     title: "Dihydroxylation",
     reagents: "OsO₄ / NMO",
     description: "Syn Dihydroxylation (Two OH groups)",
@@ -410,6 +422,7 @@ export const reactionLevels = [
   // Syn Addition. CH2 adds to one face. Methyl pushed opposite.
   {
     id: 14,
+    chapter: "Alkenes",
     title: "Cyclopropanation",
     reagents: "CH₂I₂ / Zn(Cu)",
     description: "Syn Addition of CH2",
@@ -444,6 +457,7 @@ export const reactionLevels = [
   // Mixture. H opposite to Methyl.
   {
     id: 15,
+    chapter: "Alkenes",
     title: "Radical Hydrohalogenation",
     reagents: "HBr / ROOR",
     description: "Anti-Markovnikov Hydrohalogenation (Mixture)",
@@ -469,6 +483,7 @@ export const reactionLevels = [
   // Mixture of enantiomers. Br opposite to Methyl.
   {
     id: 16,
+    chapter: "Alkenes",
     title: "Hydrohalogenation",
     reagents: "HBr",
     description: "Markovnikov Addition (H to less sub, Br to more sub)",
@@ -528,6 +543,7 @@ export const reactionLevels = [
 
   {
     id: 17,
+    chapter: "Alkenes",
     title: "Catalytic Hydration",
     reagents: "H₂O / H⁺",
     description: "Markovnikov Addition of Water (Alcohol product)",
@@ -563,6 +579,7 @@ export const reactionLevels = [
 
   {
     id: 18,
+    chapter: "Alkenes",
     title: "Addition of Alcohols",
     reagents: "CH₃OH / H⁺",
     description: "Markovnikov Addition (Ether product)",
@@ -608,6 +625,7 @@ export const reactionLevels = [
   // Step 2: DMS reduces ozonide to carbonyls
   {
     id: 19,
+    chapter: "Alkenes",
     title: "Ozonolysis",
     reagents: "1. O₃ / 2. CH3OH",
     description: "Oxidative Cleavage (Ring opens to Keto-Aldehyde)",
@@ -705,6 +723,7 @@ export const reactionLevels = [
 
   {
     id: 20,
+    chapter: "Alkenes",
     title: "Ozonolysis",
     reagents: "1. O₃ / 2. CH3OH",
     description: "Oxidative Cleavage (Ring opens to Keto-Aldehyde)",

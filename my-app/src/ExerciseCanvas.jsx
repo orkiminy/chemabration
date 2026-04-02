@@ -36,15 +36,21 @@ const RING_TEMPLATES = {
   },
 };
 
-export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
+export default function ExerciseCanvas({ exerciseType = "OneStepReaction", chapter = null }) {
   /* ---------- CONSTANTS ---------- */
   const WIDTH = 480;
   const HEIGHT = 480;
   const GRID_SPACING = 40;
   const SNAP_RADIUS = 10;
 
+  // Filter levels by chapter (null = all)
+  const filteredLevels = useMemo(() =>
+    chapter ? reactionLevels.filter(l => l.chapter === chapter) : reactionLevels,
+    [chapter]
+  );
+
   /* ---------- STATE ---------- */
-  const [levelIndex, setLevelIndex] = useState(() => Math.floor(Math.random() * reactionLevels.length));
+  const [levelIndex, setLevelIndex] = useState(() => Math.floor(Math.random() * filteredLevels.length));
   const [questionCount, setQuestionCount] = useState(1);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
 
@@ -74,7 +80,7 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction" }) {
   const [ringType, setRingType] = useState(null);
 
 const { user } = useAuth();
-  const currentLevel = reactionLevels[levelIndex];
+  const currentLevel = filteredLevels[levelIndex];
 
   /* Clear feedback when user modifies canvas */
   useEffect(() => {
@@ -140,7 +146,7 @@ const { user } = useAuth();
 
   /* ---------- HELPER: RANDOMIZER ---------- */
   const getRandomLevelIndex = (currentIndex) => {
-    const total = reactionLevels.length;
+    const total = filteredLevels.length;
     if (total <= 1) return 0;
     let nextIndex;
     do {
@@ -456,6 +462,15 @@ const { user } = useAuth();
   /* ---------- HELPERS ---------- */
 
   /* ---------- RENDER ---------- */
+  if (!currentLevel) {
+    return (
+      <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#888" }}>
+        <h3>No questions available for this chapter yet.</h3>
+        <p>Questions will appear here once they are added to this chapter.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Question header */}
