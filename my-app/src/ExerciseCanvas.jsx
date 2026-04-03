@@ -485,6 +485,19 @@ const { user } = useAuth();
     if (currentLevel.solutions) possibleSolutions = currentLevel.solutions;
     else if (currentLevel.solution) possibleSolutions = [currentLevel.solution];
 
+    // --- DEBUG LOGGING ---
+    console.group(`[CheckAnswer] "${currentLevel.title}" (id: ${currentLevel.id})`);
+    console.log("User atoms:", JSON.stringify(atoms.map(a => ({ id: a.id, label: a.label || "C" }))));
+    console.log("User bonds:", JSON.stringify(bonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
+    console.log("User atom count:", atoms.length, "| User bond count:", bonds.length);
+    possibleSolutions.forEach((sol, i) => {
+      console.log(`Solution[${i}] atoms:`, JSON.stringify(sol.atoms.map(a => ({ id: a.id, label: a.label || "C" }))));
+      console.log(`Solution[${i}] bonds:`, JSON.stringify(sol.bonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
+      console.log(`Solution[${i}] atom count:`, sol.atoms.length, "| bond count:", sol.bonds.length);
+    });
+    console.groupEnd();
+    // --- END DEBUG ---
+
     const matchFound = possibleSolutions.some((sol) => {
       if (!sol || !sol.atoms) return false;
       return checkIsomorphism(atoms, bonds, sol.atoms, sol.bonds);
