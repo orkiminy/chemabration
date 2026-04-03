@@ -97,10 +97,11 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction", chapt
 const { user } = useAuth();
   const currentLevel = filteredLevels[levelIndex];
 
-  // Reset level index when the filtered list changes (e.g. rules finish loading)
+  // Reset level index and shuffle bag when the filtered list changes
   useEffect(() => {
     if (filteredLevels.length > 0) {
       setLevelIndex(Math.floor(Math.random() * filteredLevels.length));
+      setSeenIndices(new Set());
     }
   }, [filteredLevels.length]);
 
@@ -167,13 +168,26 @@ const { user } = useAuth();
   };
 
   /* ---------- HELPER: RANDOMIZER ---------- */
+  // Shuffle bag: cycle through all exercises before repeating any
+  const [seenIndices, setSeenIndices] = useState(new Set());
+
   const getRandomLevelIndex = (currentIndex) => {
     const total = filteredLevels.length;
     if (total <= 1) return 0;
+
+    // If we've seen all (or almost all), reset the bag
+    let seen = seenIndices;
+    if (seen.size >= total - 1) {
+      seen = new Set();
+      setSeenIndices(seen);
+    }
+
     let nextIndex;
     do {
       nextIndex = Math.floor(Math.random() * total);
-    } while (nextIndex === currentIndex);
+    } while (nextIndex === currentIndex || seen.has(nextIndex));
+
+    setSeenIndices(prev => new Set(prev).add(nextIndex));
     return nextIndex;
   };
 
@@ -470,19 +484,6 @@ const { user } = useAuth();
     let possibleSolutions = [];
     if (currentLevel.solutions) possibleSolutions = currentLevel.solutions;
     else if (currentLevel.solution) possibleSolutions = [currentLevel.solution];
-
-    // --- DEBUG LOGGING ---
-    console.group(`[CheckAnswer] "${currentLevel.title}" (id: ${currentLevel.id})`);
-    console.log("User atoms:", JSON.stringify(atoms.map(a => ({ id: a.id, label: a.label || "C" }))));
-    console.log("User bonds:", JSON.stringify(bonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
-    console.log("User atom count:", atoms.length, "| User bond count:", bonds.length);
-    possibleSolutions.forEach((sol, i) => {
-      console.log(`Solution[${i}] atoms:`, JSON.stringify(sol.atoms.map(a => ({ id: a.id, label: a.label || "C" }))));
-      console.log(`Solution[${i}] bonds:`, JSON.stringify(sol.bonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
-      console.log(`Solution[${i}] atom count:`, sol.atoms.length, "| bond count:", sol.bonds.length);
-    });
-    console.groupEnd();
-    // --- END DEBUG ---
 
     const matchFound = possibleSolutions.some((sol) => {
       if (!sol || !sol.atoms) return false;
