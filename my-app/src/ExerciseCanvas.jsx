@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { atomFill, atomTextColor, atomRadius } from "./engine/atomColors";
 import SetCanvas from "./setCanvas";
 import ReactionArrow from "./addingReaction";
@@ -49,8 +49,11 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction", chapt
   // --- Rule-based exercises from Firestore ---
   const [ruleLevels, setRuleLevels] = useState([]);
   const [rulesLoading, setRulesLoading] = useState(true);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
+    if (loadedRef.current) return; // prevent StrictMode double-load
+    loadedRef.current = true;
     loadRules()
       .then(rules => setRuleLevels(rulesToExercises(rules)))
       .catch(err => console.error("Failed to load rules:", err))
@@ -66,6 +69,7 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction", chapt
 
   /* ---------- STATE ---------- */
   const [levelIndex, setLevelIndex] = useState(0);
+  const levelIndexRef = useRef(0);
   const [questionCount, setQuestionCount] = useState(1);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
 
@@ -97,11 +101,16 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction", chapt
 const { user } = useAuth();
   const currentLevel = filteredLevels[levelIndex];
 
-  // Reset level index and shuffle bag when the filtered list changes
+  // Keep levelIndexRef in sync
+  useEffect(() => { levelIndexRef.current = levelIndex; }, [levelIndex]);
+
+  // Reset level index and shuffle queue when the filtered list changes
   useEffect(() => {
     if (filteredLevels.length > 0) {
-      setLevelIndex(Math.floor(Math.random() * filteredLevels.length));
-      setSeenIndices(new Set());
+      shuffleQueueRef.current = []; // force rebuild on next advance
+      const idx = Math.floor(Math.random() * filteredLevels.length);
+      setLevelIndex(idx);
+      levelIndexRef.current = idx;
     }
   }, [filteredLevels.length]);
 
@@ -110,6 +119,7 @@ const { user } = useAuth();
     if (feedback) setFeedback(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atoms, bonds]);
+
 
   /* ---------- FIREBASE: PERSISTENCE LOGIC ---------- */
 
@@ -168,26 +178,27 @@ const { user } = useAuth();
   };
 
   /* ---------- HELPER: RANDOMIZER ---------- */
-  // Shuffle bag: cycle through all exercises before repeating any
-  const [seenIndices, setSeenIndices] = useState(new Set());
+  // Pre-shuffled queue — guarantees every exercise before any repeat
+  const shuffleQueueRef = useRef([]);
+
+  const buildShuffleQueue = (total, excludeIndex) => {
+    const indices = Array.from({ length: total }, (_, i) => i).filter(i => i !== excludeIndex);
+    // Fisher-Yates shuffle
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    return indices;
+  };
 
   const getRandomLevelIndex = (currentIndex) => {
     const total = filteredLevels.length;
     if (total <= 1) return 0;
-
-    // If we've seen all (or almost all), reset the bag
-    let seen = seenIndices;
-    if (seen.size >= total - 1) {
-      seen = new Set();
-      setSeenIndices(seen);
+    if (shuffleQueueRef.current.length === 0) {
+      shuffleQueueRef.current = buildShuffleQueue(total, currentIndex);
     }
-
-    let nextIndex;
-    do {
-      nextIndex = Math.floor(Math.random() * total);
-    } while (nextIndex === currentIndex || seen.has(nextIndex));
-
-    setSeenIndices(prev => new Set(prev).add(nextIndex));
+    const nextIndex = shuffleQueueRef.current.pop();
+    console.log(`[Shuffle] picked index ${nextIndex} ("${filteredLevels[nextIndex]?.title}"), queue remaining: ${shuffleQueueRef.current.length}/${total - 1}`);
     return nextIndex;
   };
 
@@ -338,7 +349,12 @@ const { user } = useAuth();
   const handleBondClick = (bondId) => {
     if (tool === "eraser") {
       saveHistory(atoms, bonds);
-      setBonds(bonds.filter(b => b.id !== bondId));
+      const newBonds = bonds.filter(b => b.id !== bondId);
+      // Remove atoms that become orphaned (no remaining bonds)
+      const connectedIds = new Set();
+      newBonds.forEach(b => { connectedIds.add(b.from); connectedIds.add(b.to); });
+      setAtoms(atoms.filter(a => connectedIds.has(a.id)));
+      setBonds(newBonds);
       return;
     }
     saveHistory(atoms, bonds);
@@ -433,8 +449,9 @@ const { user } = useAuth();
     saveProgress(nextCount, true);
 
     setTimeout(() => {
-      const nextIndex = getRandomLevelIndex(levelIndex);
+      const nextIndex = getRandomLevelIndex(levelIndexRef.current);
       setLevelIndex(nextIndex);
+      levelIndexRef.current = nextIndex;
       setQuestionCount(nextCount);
       setAtoms([]);
       setBonds([]);
@@ -485,11 +502,17 @@ const { user } = useAuth();
     if (currentLevel.solutions) possibleSolutions = currentLevel.solutions;
     else if (currentLevel.solution) possibleSolutions = [currentLevel.solution];
 
+    // Clean up any ghost atoms (orphans with no bonds) before comparing
+    const connectedIds = new Set();
+    bonds.forEach(b => { connectedIds.add(b.from); connectedIds.add(b.to); });
+    const cleanAtoms = atoms.filter(a => connectedIds.has(a.id));
+    const cleanBonds = bonds;
+
     // --- DEBUG LOGGING ---
     console.group(`[CheckAnswer] "${currentLevel.title}" (id: ${currentLevel.id})`);
-    console.log("User atoms:", JSON.stringify(atoms.map(a => ({ id: a.id, label: a.label || "C" }))));
-    console.log("User bonds:", JSON.stringify(bonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
-    console.log("User atom count:", atoms.length, "| User bond count:", bonds.length);
+    console.log("User atoms:", JSON.stringify(cleanAtoms.map(a => ({ id: a.id, label: a.label || "C" }))));
+    console.log("User bonds:", JSON.stringify(cleanBonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
+    console.log("User atom count:", cleanAtoms.length, "| User bond count:", cleanBonds.length);
     possibleSolutions.forEach((sol, i) => {
       console.log(`Solution[${i}] atoms:`, JSON.stringify(sol.atoms.map(a => ({ id: a.id, label: a.label || "C" }))));
       console.log(`Solution[${i}] bonds:`, JSON.stringify(sol.bonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
@@ -500,7 +523,7 @@ const { user } = useAuth();
 
     const matchFound = possibleSolutions.some((sol) => {
       if (!sol || !sol.atoms) return false;
-      return checkIsomorphism(atoms, bonds, sol.atoms, sol.bonds);
+      return checkIsomorphism(cleanAtoms, cleanBonds, sol.atoms, sol.bonds);
     });
 
     if (matchFound) {

@@ -213,9 +213,10 @@ export function ruleToExercise(rule) {
  * Filters out rules that have no pattern/result, no chapter, or wildcard atoms.
  */
 export function rulesToExercises(rules) {
-  return rules
-    .filter(r => r.patternAtoms?.length > 0 && r.resultAtoms?.length > 0)
-    .filter(r => r.reactionType)
-    .filter(r => !hasWildcards(r.patternAtoms))
+  const withAtoms = rules.filter(r => r.patternAtoms?.length > 0 && r.resultAtoms?.length > 0);
+  const withChapter = withAtoms.filter(r => r.reactionType);
+  console.log(`[rulesToExercises] ${rules.length} total rules → ${withAtoms.length} with atoms → ${withChapter.length} with chapter`);
+  withChapter.forEach(r => console.log(`  - "${r.name}" (chapter: ${r.reactionType})`));
+  return withChapter
     .map(ruleToExercise);
 }
