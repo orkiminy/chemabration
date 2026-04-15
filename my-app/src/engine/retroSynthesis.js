@@ -85,18 +85,7 @@ function subgraphToLabel(groupAtomIds, atoms, bonds) {
   if (carbons.length > 0 && carbons.length === groupAtoms.length) {
     // All-carbon group — count bonds within group and to outside
     const n = carbons.length;
-    // Count total bond order for each carbon
-    let totalBondOrder = 0;
-    for (const atom of carbons) {
-      for (const b of bonds) {
-        const otherId = b.from === atom.id ? b.to : b.to === atom.id ? b.from : null;
-        if (otherId == null) continue;
-        totalBondOrder += (b.order || 1);
-      }
-    }
-    // Each bond counted twice (from each end), except external bonds counted once
-    // Simpler: implicit H = valence(4) * n - 2*(internal bonds) - external bonds
-    // But just use common cases:
+    // Common cases by carbon count:
     if (n === 1) return 'CH₃';
     if (n === 2) return 'C₂H₅';
     if (n === 3) return 'C₃H₇';
@@ -351,7 +340,7 @@ function normalizeBenzene(atoms, bonds) {
 
 /** Check if a molecule is "simple" (common starting material) */
 /** Check if molecule contains a 6-member carbon ring with alternating single/double bonds (benzene) */
-function hasAromaticRing(atoms, bonds) {
+function hasAromaticRing(atoms, bonds) { // eslint-disable-line no-unused-vars
   return findSixRings(atoms, bonds).some(ring => {
     const orders = ring.map((id, i) => {
       const nextId = ring[(i + 1) % 6];
@@ -365,7 +354,7 @@ function hasAromaticRing(atoms, bonds) {
 }
 
 /** Check if molecule contains a 6-member carbon ring with ALL single bonds (cyclohexane) */
-function hasSaturatedRing(atoms, bonds) {
+function hasSaturatedRing(atoms, bonds) { // eslint-disable-line no-unused-vars
   return findSixRings(atoms, bonds).some(ring => {
     const orders = ring.map((id, i) => {
       const nextId = ring[(i + 1) % 6];
