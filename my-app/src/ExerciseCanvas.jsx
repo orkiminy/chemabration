@@ -32,10 +32,17 @@ function isTrivialReagent(s) {
   return TRIVIAL_REAGENTS.has(normalizeReagentText(s));
 }
 
-function checkReagentMatch(userInput, expected) {
-  const u = normalizeReagentText(userInput);
-  const e = normalizeReagentText(expected);
-  return u.length > 0 && u === e;
+function splitReagentSteps(reagentStr) {
+  // Split "1. X / 2. Y" into ["X", "Y"], or return ["whole string"] for simple reagents
+  const parts = String(reagentStr ?? "").split(/\s*\/\s*/).map(s => s.replace(/^\d+\.\s*/, "").trim()).filter(Boolean);
+  return parts.length > 0 ? parts : [""];
+}
+
+function checkReagentMatch(userInputs, expected) {
+  const expectedParts = splitReagentSteps(expected);
+  const userParts = userInputs.map(s => s.trim()).filter(Boolean);
+  if (userParts.length !== expectedParts.length) return false;
+  return userParts.every((u, i) => normalizeReagentText(u) === normalizeReagentText(expectedParts[i]));
 }
 
 function pickQuestionType(level) {
@@ -135,7 +142,7 @@ export default function ExerciseCanvas({ exerciseType = "OneStepReaction", chapt
 
   // Question type: "product" (draw product), "reactant" (draw reactant), or "reagent" (type reagent text)
   const [questionType, setQuestionType] = useState("product");
-  const [reagentInput, setReagentInput] = useState("");
+  const [reagentInputs, setReagentInputs] = useState([""]);
 
   // Drawing helpers
   const [history, setHistory] = useState([]);
@@ -164,12 +171,19 @@ const { user } = useAuth();
   useEffect(() => {
     if (feedback) setFeedback(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [atoms, bonds, reagentInput]);
+  }, [atoms, bonds, reagentInputs]);
 
   /* Pick a new question type whenever the current level changes */
   useEffect(() => {
-    setQuestionType(pickQuestionType(currentLevel));
-    setReagentInput("");
+    const qt = pickQuestionType(currentLevel);
+    setQuestionType(qt);
+    // Pre-size reagent inputs to match the number of expected steps
+    if (qt === "reagent" && currentLevel) {
+      const stepCount = splitReagentSteps(currentLevel.reagents).length;
+      setReagentInputs(Array(stepCount).fill(""));
+    } else {
+      setReagentInputs([""]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelIndex, currentLevel?.id]);
 
@@ -523,7 +537,7 @@ const { user } = useAuth();
       setQuestionCount(nextCount);
       setAtoms([]);
       setBonds([]);
-      setReagentInput("");
+      setReagentInputs([""]);
       setFeedback(null);
       setCurrentStep(0);
       setIntermediateResult(null);
@@ -537,11 +551,11 @@ const { user } = useAuth();
   const checkAnswer = () => {
     // Reagent text question — checked separately, no drawing required
     if (questionType === "reagent") {
-      if (!reagentInput.trim()) {
+      if (reagentInputs.every(s => !s.trim())) {
         setFeedback({ type: "error", message: "Type the reagent first!" });
         return;
       }
-      if (checkReagentMatch(reagentInput, currentLevel.reagents)) {
+      if (checkReagentMatch(reagentInputs, currentLevel.reagents)) {
         setFeedback({ type: "success", message: "Correct! Next question..." });
         advanceToNextQuestion();
       } else {
@@ -712,16 +726,37 @@ const { user } = useAuth();
             <div className="exercise-panel-box">
               <div className="exercise-panel-label">Reagent</div>
               <div style={{ padding: "20px", textAlign: "center", minWidth: 220 }}>
-                <input
-                  type="text"
-                  value={reagentInput}
-                  onChange={(e) => setReagentInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") checkAnswer(); }}
-                  placeholder="e.g. H2 / Pt"
-                  style={{ padding: "8px 10px", fontSize: "16px", width: "200px", border: "1px solid #ccc", borderRadius: 4 }}
-                  autoFocus
-                />
-                <div style={{ marginTop: 12, display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                {reagentInputs.map((val, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, justifyContent: "center" }}>
+                    {reagentInputs.length > 1 && (
+                      <span style={{ fontWeight: 600, color: "#5f021f", fontSize: "0.85rem", minWidth: 18 }}>{idx + 1}.</span>
+                    )}
+                    <input
+                      type="text"
+                      value={val}
+                      onChange={(e) => {
+                        const next = [...reagentInputs];
+                        next[idx] = e.target.value;
+                        setReagentInputs(next);
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter") checkAnswer(); }}
+                      placeholder={idx === 0 ? "e.g. HBr" : "e.g. H2O"}
+                      style={{ padding: "8px 10px", fontSize: "16px", width: "180px", border: "1px solid #ccc", borderRadius: 4 }}
+                      autoFocus={idx === 0}
+                    />
+                    {reagentInputs.length > 1 && (
+                      <span
+                        onClick={() => setReagentInputs(reagentInputs.filter((_, i) => i !== idx))}
+                        style={{ cursor: "pointer", color: "#999", fontWeight: "bold", fontSize: 16, userSelect: "none" }}
+                      >×</span>
+                    )}
+                  </div>
+                ))}
+                <div
+                  onClick={() => setReagentInputs([...reagentInputs, ""])}
+                  style={{ color: "#5f021f", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600, userSelect: "none", marginBottom: 10 }}
+                >+ Add Step</div>
+                <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
                   <button className="toolbar-btn toolbar-btn-check" onClick={checkAnswer}>Check Answer</button>
                   <button className="toolbar-btn" style={{ opacity: 0.75 }} onClick={handleShowAnswer}>
                     {showAnswer ? "Hide Answer" : "Show Answer"}
