@@ -413,6 +413,7 @@ Navigation
   margin: 0 auto 3rem;
   padding: 0 1rem;
   flex-wrap: wrap;
+  overflow: hidden;
 }
 
 .nav-card {
@@ -455,20 +456,24 @@ Navigation
   color: #6b7280;
 }
 
-/* Nav card entrance animation */
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Nav card entrance animations — alternate from left and right */
+@keyframes slideFromLeft {
+  from { opacity: 0; transform: translateX(-100vw); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
-.nav-card {
-  animation: fadeSlideUp 0.4s ease both;
+@keyframes slideFromRight {
+  from { opacity: 0; transform: translateX(100vw); }
+  to { opacity: 1; transform: translateX(0); }
 }
-.nav-card:nth-child(1) { animation-delay: 0.05s; }
-.nav-card:nth-child(2) { animation-delay: 0.1s; }
-.nav-card:nth-child(3) { animation-delay: 0.15s; }
-.nav-card:nth-child(4) { animation-delay: 0.2s; }
-.nav-card:nth-child(5) { animation-delay: 0.25s; }
+
+.nav-card:nth-child(odd) { animation: slideFromLeft 1.2s ease-out both; }
+.nav-card:nth-child(even) { animation: slideFromRight 1.2s ease-out both; }
+.nav-card:nth-child(1) { animation-delay: 0.15s; }
+.nav-card:nth-child(2) { animation-delay: 0.35s; }
+.nav-card:nth-child(3) { animation-delay: 0.55s; }
+.nav-card:nth-child(4) { animation-delay: 0.75s; }
+.nav-card:nth-child(5) { animation-delay: 0.95s; }
 
 /* Hero pattern animation */
 @keyframes subtleDrift {
