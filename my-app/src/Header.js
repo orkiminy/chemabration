@@ -1,10 +1,48 @@
 import './App.css';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
+
+function useCountUp(target, duration = 1200) {
+  const [value, setValue] = useState(0);
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current || target === 0) { setValue(target); return; }
+    started.current = true;
+    const start = performance.now();
+    const step = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setValue(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+  return value;
+}
 
 function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, "students", user.uid)).then(snap => {
+      if (snap.exists()) setStats(snap.data());
+    }).catch(() => {});
+  }, [user]);
+
+  const firstName = (user?.displayName || '').split(' ')[0] || 'Student';
+  const questionsAnswered = stats?.questionCount || 0;
+  const correctCount = stats?.correctCount || 0;
+  const accuracy = questionsAnswered > 0 ? Math.round((correctCount / questionsAnswered) * 100) : 0;
+
+  const animQuestions = useCountUp(questionsAnswered);
+  const animCorrect = useCountUp(correctCount);
+  const animAccuracy = useCountUp(accuracy);
 
   const handleLogout = async () => {
     await logout();
@@ -73,6 +111,15 @@ function Header() {
       </div>
 
       <div className="hero-section">
+        {/* Floating hexagons */}
+        <div className="floating-hexagons" aria-hidden="true">
+          <div className="float-hex float-hex-1"><svg viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="currentColor" strokeWidth="3"/></svg></div>
+          <div className="float-hex float-hex-2"><svg viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="currentColor" strokeWidth="3"/></svg></div>
+          <div className="float-hex float-hex-3"><svg viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="currentColor" strokeWidth="3"/></svg></div>
+          <div className="float-hex float-hex-4"><svg viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="currentColor" strokeWidth="3"/></svg></div>
+          <div className="float-hex float-hex-5"><svg viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="currentColor" strokeWidth="3"/></svg></div>
+          <div className="float-hex float-hex-6"><svg viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="currentColor" strokeWidth="3"/></svg></div>
+        </div>
         <img
           src="/images/Screenshot 2024-12-26 232145.png"
           alt="Chemebration hexagon pattern"
@@ -80,68 +127,61 @@ function Header() {
         />
         <div className="hero-overlay">
           <h2 className="hero-tagline">Celebrate Organic Chemistry</h2>
-          <p className="hero-subtitle">Practice reactions, build intuition, and learn by drawing</p>
+          <p className="hero-subtitle">Welcome back, {firstName}</p>
+          <div className="hero-stats">
+            <div className="hero-stat">
+              <span className="hero-stat-number">{animQuestions}</span>
+              <span className="hero-stat-label">Questions</span>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-number">{animCorrect}</span>
+              <span className="hero-stat-label">Correct</span>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-number">{animAccuracy}%</span>
+              <span className="hero-stat-label">Accuracy</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="subcategories">
-        <ul>
-          <li className='subcategories-org'>
-            <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
-                      fill="transparent"
-                      stroke="#1a3a4a"
-                      strokeWidth="4"/>
-            </svg>
-            <Link to="/oneStepReaction">
-              One-step reaction
-            </Link>
-          </li>
-          <li className='subcategories-org'>
-            <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
-                      fill="transparent"
-                      stroke="#1a3a4a"
-                      strokeWidth="4"/>
-            </svg>
-            <Link to="/Synthesis">
-              Synthesis
-            </Link>
-          </li>
-          <li className='subcategories-org'>
-            <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
-                      fill="transparent"
-                      stroke="#1a3a4a"
-                      strokeWidth="4"/>
-            </svg>
-            <Link to="/ReactionExplorer">
-              Explorer
-            </Link>
-          </li>
-          <li className='subcategories-org'>
-            <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
-                      fill="transparent"
-                      stroke="#1a3a4a"
-                      strokeWidth="4"/>
-            </svg>
-            <Link to="/ReactionLibrary">
-              Reaction Library
-            </Link>
-          </li>
-          <li className='subcategories-org'>
-            <svg className="hexagon" width="50" height="30" viewBox="0 0 120 104" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="35,0 85,0 120,52 85,104 35,104 0,52"
-                      fill="transparent"
-                      stroke="#1a3a4a"
-                      strokeWidth="4"/>
-            </svg>
-            <Link to="/rule-builder">
-              Rule Builder
-            </Link>
-          </li>
-        </ul>
+      {/* Navigation cards */}
+      <div className="nav-cards">
+        <Link to="/oneStepReaction" className="nav-card">
+          <svg className="nav-card-hex" width="40" height="24" viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="#2d7d9a" strokeWidth="5"/></svg>
+          <div className="nav-card-text">
+            <span className="nav-card-title">One-step Reaction</span>
+            <span className="nav-card-desc">Predict products, reactants & reagents</span>
+          </div>
+        </Link>
+        <Link to="/Synthesis" className="nav-card">
+          <svg className="nav-card-hex" width="40" height="24" viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="#2d7d9a" strokeWidth="5"/></svg>
+          <div className="nav-card-text">
+            <span className="nav-card-title">Synthesis</span>
+            <span className="nav-card-desc">Plan multi-step reaction pathways</span>
+          </div>
+        </Link>
+        <Link to="/ReactionExplorer" className="nav-card">
+          <svg className="nav-card-hex" width="40" height="24" viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="#2d7d9a" strokeWidth="5"/></svg>
+          <div className="nav-card-text">
+            <span className="nav-card-title">Explorer</span>
+            <span className="nav-card-desc">See how reactions transform molecules</span>
+          </div>
+        </Link>
+        <Link to="/ReactionLibrary" className="nav-card">
+          <svg className="nav-card-hex" width="40" height="24" viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="#2d7d9a" strokeWidth="5"/></svg>
+          <div className="nav-card-text">
+            <span className="nav-card-title">Reaction Library</span>
+            <span className="nav-card-desc">Browse all reactions by category</span>
+          </div>
+        </Link>
+        <Link to="/rule-builder" className="nav-card">
+          <svg className="nav-card-hex" width="40" height="24" viewBox="0 0 120 104"><polygon points="35,0 85,0 120,52 85,104 35,104 0,52" fill="none" stroke="#2d7d9a" strokeWidth="5"/></svg>
+          <div className="nav-card-text">
+            <span className="nav-card-title">Rule Builder</span>
+            <span className="nav-card-desc">Create and manage reaction rules</span>
+          </div>
+        </Link>
       </div>
 
     </header>

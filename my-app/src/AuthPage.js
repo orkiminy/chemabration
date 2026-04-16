@@ -45,12 +45,12 @@ export default function AuthPage() {
   };
 
   const containerStyle = {
-    backgroundColor: "#e8eef1",
+    backgroundColor: "#f8f9fa",
     minHeight: "100vh",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    fontFamily: "Arial, sans-serif"
+    fontFamily: "'Inter', sans-serif"
   };
 
   const headerStyle = {
@@ -91,6 +91,16 @@ export default function AuthPage() {
     <div style={containerStyle}>
       <div style={headerStyle}>CHEMEBRATION</div>
 
+      {/* Hero tagline */}
+      <div style={{ textAlign: "center", padding: "3rem 1rem 1rem" }}>
+        <h2 style={{ fontSize: "2.8rem", fontWeight: 700, color: "#1a3a4a", margin: "0 0 0.5rem", letterSpacing: "-0.02em" }}>
+          Celebrate Organic Chemistry
+        </h2>
+        <p style={{ fontSize: "1.2rem", color: "#6b7280", margin: 0 }}>
+          Practice reactions, build intuition, and learn by drawing
+        </p>
+      </div>
+
       <form style={formStyle} onSubmit={handleSubmit}>
         <h2 style={{ color: "#1a3a4a", textAlign: "center", margin: 0 }}>
           {isLogin ? "Welcome Back" : "Join the Celebration"}
@@ -99,18 +109,18 @@ export default function AuthPage() {
         {!isLogin && (
           <input
             type="text" placeholder="Full Name" required
-            style={{ padding: "10px" }} onChange={(e) => setName(e.target.value)}
+            style={{ padding: "10px", borderRadius: "6px", border: "1px solid #e2e5e9", fontSize: "14px" }} onChange={(e) => setName(e.target.value)}
           />
         )}
 
         <input
           type="email" placeholder="Email Address" required
-          style={{ padding: "10px" }} onChange={(e) => setEmail(e.target.value)}
+          style={{ padding: "10px", borderRadius: "6px", border: "1px solid #e2e5e9", fontSize: "14px" }} onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
           type="password" placeholder="Password" required
-          style={{ padding: "10px" }} onChange={(e) => setPassword(e.target.value)}
+          style={{ padding: "10px", borderRadius: "6px", border: "1px solid #e2e5e9", fontSize: "14px" }} onChange={(e) => setPassword(e.target.value)}
         />
 
         <button type="submit" style={buttonStyle}>
@@ -118,12 +128,40 @@ export default function AuthPage() {
         </button>
 
         <p
-          style={{ textAlign: "center", color: "#666", fontSize: "14px", cursor: "pointer" }}
+          style={{ textAlign: "center", color: "#2d7d9a", fontSize: "14px", cursor: "pointer" }}
           onClick={() => setIsLogin(!isLogin)}
         >
           {isLogin ? "New here? Create an account" : "Already have an account? Log in"}
         </p>
       </form>
+
+      {/* Feature cards */}
+      <div className="features-section" style={{ marginTop: "3rem" }}>
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg width="36" height="36" viewBox="0 0 36 36"><path d="M8 28L18 8L28 28" stroke="#2d7d9a" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="18" cy="8" r="3" fill="#2d7d9a"/><circle cx="8" cy="28" r="3" fill="#2d7d9a"/><circle cx="28" cy="28" r="3" fill="#2d7d9a"/></svg>
+          </div>
+          <h3 className="feature-title">Draw & Learn</h3>
+          <p className="feature-desc">Practice by drawing molecules on an interactive canvas, not just reading about them</p>
+        </div>
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="14" stroke="#2d7d9a" strokeWidth="2.5" fill="none"/><path d="M12 18L16 22L24 14" stroke="#2d7d9a" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+          <h3 className="feature-title">Instant Feedback</h3>
+          <p className="feature-desc">Know immediately if your answer is correct with structure-aware checking</p>
+        </div>
+        <div className="feature-card">
+          <div className="feature-icon">
+            <svg width="36" height="36" viewBox="0 0 36 36"><rect x="6" y="20" width="6" height="10" rx="1" fill="#2d7d9a" opacity="0.5"/><rect x="15" y="14" width="6" height="16" rx="1" fill="#2d7d9a" opacity="0.7"/><rect x="24" y="6" width="6" height="24" rx="1" fill="#2d7d9a"/></svg>
+          </div>
+          <h3 className="feature-title">Track Progress</h3>
+          <p className="feature-desc">See your improvement over time with detailed attempt tracking</p>
+        </div>
+      </div>
+
+      {/* Stats line */}
+      <p className="stats-line" style={{ marginBottom: "3rem" }}>80+ reactions across 12 chapters — built for organic chemistry students</p>
     </div>
   );
 }
