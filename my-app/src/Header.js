@@ -50,7 +50,7 @@ function Header() {
             <li className="icons d-flex">
               <div className="group-icon">
                 <div className="icon">
-                  <a href="https://instagram.com/chemebration_" target="_blank" rel="noreferrer">
+                  <a href="https://instagram.com/chemebration" target="_blank" rel="noreferrer">
                     <i className="bx bxl-instagram"></i>
                   </a>
                 </div>

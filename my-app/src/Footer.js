@@ -11,7 +11,7 @@ function Footer() {
                             <div className="col d-flex">
                             </div>
                             <div className="col d-flex">
-<span><a href="https://instagram.com/chemebration_" target="_blank" rel="noreferrer"><i className='bx bxl-instagram-alt'></i></a></span>
+<span><a href="https://instagram.com/chemebration" target="_blank" rel="noreferrer"><i className='bx bxl-instagram-alt'></i></a></span>
                             <span><i className='bx bxl-tiktok-alt' ></i></span>
                             <span><a href="mailto:Chemebration@gmail.com"><i className='bx bx-envelope'></i></a></span>
                         </div>

@@ -845,10 +845,16 @@ const { user } = useAuth();
 
                 {/* Arrows */}
                 <div style={{ margin: "8px 0" }}>
-                  <div style={{ fontSize: "28px", fontWeight: "bold", color: "#333", lineHeight: 1 }}>→</div>
-                  {showBackwardArrow && (
-                    <div style={{ fontSize: "28px", fontWeight: "bold", color: "#333", lineHeight: 1 }}>←</div>
-                  )}
+                  <svg width="160" height={showBackwardArrow ? 44 : 24} viewBox={`0 0 160 ${showBackwardArrow ? 44 : 24}`}>
+                    <line x1="4" y1="12" x2="138" y2="12" stroke="#333" strokeWidth="3.5" />
+                    <polygon points="138,5 158,12 138,19" fill="#333" />
+                    {showBackwardArrow && (
+                      <>
+                        <line x1="22" y1="32" x2="156" y2="32" stroke="#333" strokeWidth="3.5" />
+                        <polygon points="22,25 2,32 22,39" fill="#333" />
+                      </>
+                    )}
+                  </svg>
                 </div>
 
                 {/* Backward arrow toggle */}
