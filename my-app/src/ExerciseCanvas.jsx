@@ -346,7 +346,6 @@ const { user } = useAuth();
       shuffleQueueRef.current = buildShuffleQueue(total, currentIndex);
     }
     const nextIndex = shuffleQueueRef.current.pop();
-    console.log(`[Shuffle] picked index ${nextIndex} ("${filteredLevels[nextIndex]?.title}"), queue remaining: ${shuffleQueueRef.current.length}/${total - 1}`);
     return nextIndex;
   };
 
@@ -697,19 +696,6 @@ const { user } = useAuth();
     bonds.forEach(b => { connectedIds.add(b.from); connectedIds.add(b.to); });
     const cleanAtoms = atoms.filter(a => connectedIds.has(a.id));
     const cleanBonds = bonds;
-
-    // --- DEBUG LOGGING ---
-    console.group(`[CheckAnswer] "${currentLevel.title}" (id: ${currentLevel.id})`);
-    console.log("User atoms:", JSON.stringify(cleanAtoms.map(a => ({ id: a.id, label: a.label || "C" }))));
-    console.log("User bonds:", JSON.stringify(cleanBonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
-    console.log("User atom count:", cleanAtoms.length, "| User bond count:", cleanBonds.length);
-    possibleSolutions.forEach((sol, i) => {
-      console.log(`Solution[${i}] atoms:`, JSON.stringify(sol.atoms.map(a => ({ id: a.id, label: a.label || "C" }))));
-      console.log(`Solution[${i}] bonds:`, JSON.stringify(sol.bonds.map(b => ({ from: b.from, to: b.to, order: b.order, style: b.style }))));
-      console.log(`Solution[${i}] atom count:`, sol.atoms.length, "| bond count:", sol.bonds.length);
-    });
-    console.groupEnd();
-    // --- END DEBUG ---
 
     const matchFound = possibleSolutions.some((sol) => {
       if (!sol || !sol.atoms) return false;

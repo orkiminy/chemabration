@@ -210,6 +210,5 @@ export function ruleToExercise(rule) {
  */
 export function rulesToExercises(rules) {
   const withAtoms = rules.filter(r => r.patternAtoms?.length > 0 && r.resultAtoms?.length > 0);
-  console.log(`[rulesToExercises] ${rules.length} total rules → ${withAtoms.length} with atoms`);
   return withAtoms.map(ruleToExercise);
 }
