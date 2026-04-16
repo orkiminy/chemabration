@@ -19,13 +19,21 @@ const ROW_H = 40 * Math.sin(Math.PI / 3);
 // Reagents that are trivial (no structural molecule) and should NOT be asked as a reagent question
 const TRIVIAL_REAGENTS = new Set(["heat", "hv", "light", "δ", "", "h+", "h⁺", "h3o+", "h₃o⁺"]);
 
+const REAGENT_ALIASES = {
+  pyr: 'pyridine', pyridine: 'pyridine',
+  cat: 'catalyst', catalyst: 'catalyst',
+};
+
 function normalizeReagentText(s) {
   const subs = "₀₁₂₃₄₅₆₇₈₉";
   return String(s ?? "")
     .toLowerCase()
     .replace(/[₀-₉]/g, (d) => String(subs.indexOf(d)))
-    .replace(/\s+/g, "")
-    .replace(/[,+]/g, "/");
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/[\s,]+/)
+    .map(t => REAGENT_ALIASES[t] || t)
+    .join("");
 }
 
 function isTrivialReagent(s) {

@@ -10,6 +10,7 @@ import Synthesis from './pages/Synthesis';
 import AnswerKey from './pages/AnswerKey';
 import ReactionExplorer from './pages/ReactionExplorer';
 import RuleBuilder from './pages/RuleBuilder';
+import ReactionLibrary from './pages/ReactionLibrary';
 import TutorialPage from './pages/TutorialPage';
 import AboutPage from './pages/AboutPage';
 
@@ -25,6 +26,7 @@ function App() {
           <Route path="/Synthesis" element={<PrivateRoute><Synthesis /></PrivateRoute>} />
           <Route path="/AnswerKey" element={<PrivateRoute><AnswerKey /></PrivateRoute>} />
           <Route path="/ReactionExplorer" element={<PrivateRoute><ReactionExplorer /></PrivateRoute>} />
+          <Route path="/ReactionLibrary" element={<PrivateRoute><ReactionLibrary /></PrivateRoute>} />
           <Route path="/rule-builder" element={<PrivateRoute><RuleBuilder /></PrivateRoute>} />
           <Route path="/tutorial" element={<PrivateRoute><TutorialPage /></PrivateRoute>} />
           <Route path="/about" element={<PrivateRoute><AboutPage /></PrivateRoute>} />

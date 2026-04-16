@@ -1090,6 +1090,8 @@ function normalizePrimes(s) {
 const REAGENT_ALIASES = {
   pyr: 'pyridine',
   pyridine: 'pyridine',
+  cat: 'catalyst',
+  catalyst: 'catalyst',
 };
 
 function normalizeReagentForMatch(str) {

@@ -206,13 +206,10 @@ export function ruleToExercise(rule) {
 
 /**
  * Convert an array of Firestore rules into exercises.
- * Filters out rules that have no pattern/result, no chapter, or wildcard atoms.
+ * Filters out rules that have no pattern/result.
  */
 export function rulesToExercises(rules) {
   const withAtoms = rules.filter(r => r.patternAtoms?.length > 0 && r.resultAtoms?.length > 0);
-  const withChapter = withAtoms.filter(r => r.reactionType);
-  console.log(`[rulesToExercises] ${rules.length} total rules → ${withAtoms.length} with atoms → ${withChapter.length} with chapter`);
-  withChapter.forEach(r => console.log(`  - "${r.name}" (chapter: ${r.reactionType})`));
-  return withChapter
-    .map(ruleToExercise);
+  console.log(`[rulesToExercises] ${rules.length} total rules → ${withAtoms.length} with atoms`);
+  return withAtoms.map(ruleToExercise);
 }
